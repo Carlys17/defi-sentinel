@@ -1,0 +1,25 @@
+version: "3.8"
+
+services:
+  defi-sentinel:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: defi-sentinel
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - ./logs:/app/logs
+      - ./.env:/app/.env:ro
+    networks:
+      - sentinel-net
+    healthcheck:
+      test: ["CMD", "python", "-c", "import sys; sys.exit(0)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  sentinel-net:
+    driver: bridge
