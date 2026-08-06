@@ -65,8 +65,8 @@ class Settings(BaseSettings):
     keeperhub_chain: Chain = Chain.BASE_SEPOLIA
 
     # --- Wallet ---
+    # Uses KeeperHub Turnkey wallet (server-side custody) — no private key needed
     wallet_address: str = ""
-    wallet_private_key: str = ""
 
     # --- Portfolio ---
     portfolio_rebalance_threshold: float = 5.0
