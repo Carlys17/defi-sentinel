@@ -1,14 +1,12 @@
 """Tests for utility functions."""
 
-import pytest
-
 from src.utils.helpers import (
-    format_ether,
-    format_usd,
-    format_percentage,
-    safe_div,
-    clamp,
     calculate_slippage,
+    clamp,
+    format_ether,
+    format_percentage,
+    format_usd,
+    safe_div,
 )
 
 

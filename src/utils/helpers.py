@@ -2,15 +2,14 @@
 
 import logging
 import time
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
 
 logger = logging.getLogger(__name__)
 
 
 def format_ether(wei: int | float, decimals: int = 18) -> str:
     """Convert wei to ether string."""
-    return f"{float(wei) / (10 ** decimals):.6f}"
+    return f"{float(wei) / (10**decimals):.6f}"
 
 
 def format_usd(amount: float) -> str:
@@ -26,12 +25,12 @@ def format_percentage(value: float) -> str:
 
 def timestamp_to_iso(ts: float) -> str:
     """Convert unix timestamp to ISO 8601 string."""
-    return datetime.fromtimestamp(ts, tz=timezone.utc).isoformat()
+    return datetime.fromtimestamp(ts, tz=UTC).isoformat()
 
 
 def now_iso() -> str:
     """Get current time as ISO 8601 string."""
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def now_ts() -> float:
@@ -51,9 +50,7 @@ def clamp(value: float, min_val: float, max_val: float) -> float:
     return max(min_val, min(value, max_val))
 
 
-def calculate_slippage(
-    expected: float, actual: float, tolerance: float = 0.01
-) -> bool:
+def calculate_slippage(expected: float, actual: float, tolerance: float = 0.01) -> bool:
     """Check if slippage is within tolerance.
 
     Returns True if slippage is acceptable.
@@ -77,6 +74,7 @@ def retry_with_backoff(
         async def my_function():
             ...
     """
+
     def decorator(func):
         async def wrapper(*args, **kwargs):
             last_exception = None
@@ -91,15 +89,17 @@ def retry_with_backoff(
                         )
                         raise
                     delay = min(
-                        base_delay * (2 ** attempt if exponential else attempt),
+                        base_delay * (2**attempt if exponential else attempt),
                         max_delay,
                     )
                     logger.warning(
-                        f"Retry {attempt}/{max_retries} for '{func.__name__}' "
-                        f"in {delay}s: {e}"
+                        f"Retry {attempt}/{max_retries} for '{func.__name__}' in {delay}s: {e}"
                     )
                     import asyncio
+
                     await asyncio.sleep(delay)
             raise last_exception  # type: ignore
+
         return wrapper
+
     return decorator

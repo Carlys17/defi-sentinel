@@ -2,8 +2,6 @@
 """Test connection to KeeperHub MCP server via streamable HTTP transport."""
 
 import asyncio
-import json
-import os
 import sys
 from pathlib import Path
 
@@ -23,6 +21,7 @@ async def main():
 
     # Use KeeperHub MCP client
     from src.keeperhub.client import KeeperHubClient
+
     client = KeeperHubClient(settings)
 
     initialized = await client.initialize()
@@ -30,7 +29,7 @@ async def main():
         print("❌ Failed to initialize MCP session")
         return
 
-    print(f"✅ Connected to KeeperHub MCP")
+    print("✅ Connected to KeeperHub MCP")
     print()
 
     # List available workflows
@@ -58,15 +57,15 @@ async def main():
     # List action schemas
     print("📋 Listing action schemas...")
     try:
-        schemas = await client.list_action_schemas()
-        print(f"Action schemas loaded successfully")
+        await client.list_action_schemas()
+        print("Action schemas loaded successfully")
     except Exception as e:
         print(f"Error listing action schemas: {e}")
     print()
 
     print("=" * 70)
     print("\n✅ MCP connection successful!")
-    print(f"\nNext step: Use the KeeperHub client to execute transactions.")
+    print("\nNext step: Use the KeeperHub client to execute transactions.")
 
     await client.close()
 

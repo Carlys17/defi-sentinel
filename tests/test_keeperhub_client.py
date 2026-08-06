@@ -1,11 +1,12 @@
 """Tests for KeeperHub MCP client."""
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
-from pydantic import ValidationError
+from unittest.mock import AsyncMock, MagicMock
 
-from src.keeperhub.client import KeeperHubClient, ExecutionResult, ExecutionStatus, Workflow
+import httpx
+import pytest
+
 from config.settings import Settings
+from src.keeperhub.client import ExecutionResult, ExecutionStatus, KeeperHubClient, Workflow
 
 
 @pytest.fixture
@@ -122,7 +123,15 @@ class TestKeeperHubClient:
     async def test_execute_transfer_success(self, client):
         mock_response = MagicMock()
         mock_response.json.return_value = {
-            "content": [{"type": "text", "text": '{"executionId": "exec-123", "status": "success", "transactionHash": "0xabc"}'}],
+            "content": [
+                {
+                    "type": "text",
+                    "text": (
+                        '{"executionId": "exec-123", "status": "success", '
+                        '"transactionHash": "0xabc"}'
+                    ),
+                }
+            ],
         }
         mock_response.raise_for_status = MagicMock()
         client._client.post = AsyncMock(return_value=mock_response)
@@ -139,7 +148,9 @@ class TestKeeperHubClient:
     async def test_execute_transfer_simulate(self, client):
         mock_response = MagicMock()
         mock_response.json.return_value = {
-            "content": [{"type": "text", "text": '{"executionId": "sim-123", "status": "simulated"}'}],
+            "content": [
+                {"type": "text", "text": '{"executionId": "sim-123", "status": "simulated"}'}
+            ],
         }
         mock_response.raise_for_status = MagicMock()
         client._client.post = AsyncMock(return_value=mock_response)
@@ -155,7 +166,9 @@ class TestKeeperHubClient:
     async def test_execute_contract_call(self, client):
         mock_response = MagicMock()
         mock_response.json.return_value = {
-            "content": [{"type": "text", "text": '{"executionId": "exec-456", "status": "success"}'}],
+            "content": [
+                {"type": "text", "text": '{"executionId": "exec-456", "status": "success"}'}
+            ],
         }
         mock_response.raise_for_status = MagicMock()
         client._client.post = AsyncMock(return_value=mock_response)
@@ -171,7 +184,15 @@ class TestKeeperHubClient:
     async def test_list_workflows(self, client):
         mock_response = MagicMock()
         mock_response.json.return_value = {
-            "content": [{"type": "text", "text": '{"workflows": [{"id": "wf-1", "name": "Test", "description": "D", "enabled": true}]}'}],
+            "content": [
+                {
+                    "type": "text",
+                    "text": (
+                        '{"workflows": [{"id": "wf-1", "name": "Test", '
+                        '"description": "D", "enabled": true}]}'
+                    ),
+                }
+            ],
         }
         mock_response.raise_for_status = MagicMock()
         client._client.post = AsyncMock(return_value=mock_response)
@@ -183,14 +204,18 @@ class TestKeeperHubClient:
 
     @pytest.mark.asyncio
     async def test_retry_on_failure(self, client):
-        """Test that retries work on transient failures."""
+        """Test that retries work on transient HTTP failures."""
         call_count = 0
 
         async def mock_post(*args, **kwargs):
             nonlocal call_count
             call_count += 1
             if call_count < 3:
-                raise Exception("Temporary failure")
+                response = MagicMock()
+                response.status_code = 503
+                raise httpx.HTTPStatusError(
+                    "Service unavailable", request=MagicMock(), response=response
+                )
             mock_response = MagicMock()
             mock_response.json.return_value = {
                 "content": [{"type": "text", "text": '{"executionId": "exec-ok"}'}],
@@ -209,13 +234,74 @@ class TestKeeperHubClient:
         assert result.execution_id == "exec-ok"
 
     @pytest.mark.asyncio
-    async def test_generate_idempotency_key(self, client):
+    async def test_retry_exhausted_raises(self, client):
+        """Test that a persistent HTTP error raises after retries are exhausted."""
+        call_count = 0
+
+        async def mock_post(*args, **kwargs):
+            nonlocal call_count
+            call_count += 1
+            response = MagicMock()
+            response.status_code = 503
+            raise httpx.HTTPStatusError(
+                "Service unavailable", request=MagicMock(), response=response
+            )
+
+        client._client.post = mock_post
+        client._retry_count = 2
+        client._retry_delay = 0.01
+
+        with pytest.raises(httpx.HTTPStatusError):
+            await client.execute_transfer(
+                to_address="0x1234567890123456789012345678901234567890",
+                amount="1000000000000000000",
+            )
+        assert call_count == 2
+
+    @pytest.mark.asyncio
+    async def test_generate_idempotency_key_deterministic(self, client):
         key1 = client._generate_idempotency_key("transfer", {"to": "0x1", "amount": "100"})
         key2 = client._generate_idempotency_key("transfer", {"to": "0x1", "amount": "100"})
         key3 = client._generate_idempotency_key("transfer", {"to": "0x2", "amount": "100"})
+        key4 = client._generate_idempotency_key("execute_transfer", {"to": "0x1", "amount": "100"})
 
-        assert key1 == key2  # same params = same key
+        assert key1 == key2  # same params = same key (retry-safe)
         assert key1 != key3  # different params = different key
+        assert key1 != key4  # different tool = different key
+        assert len(key1) == 32
+
+    @pytest.mark.asyncio
+    async def test_wait_for_execution_success(self, client):
+        """Test polling until a terminal success status."""
+        statuses = iter(["pending", "running", "success"])
+        transaction_hashes = iter([None, None, "0xabc"])
+
+        async def fake_get_execution(execution_id):
+            return ExecutionResult(
+                execution_id=execution_id,
+                status=ExecutionStatus(next(statuses)),
+                transaction_hash=next(transaction_hashes),
+            )
+
+        client.get_execution = AsyncMock(side_effect=fake_get_execution)
+
+        result = await client.wait_for_execution("exec-1", timeout=30, poll_interval=0.01)
+        assert result.status == ExecutionStatus.SUCCESS
+        assert result.transaction_hash == "0xabc"
+        assert client.get_execution.call_count == 3
+
+    @pytest.mark.asyncio
+    async def test_wait_for_execution_timeout(self, client):
+        """Test that polling gives up after timeout with last status."""
+        client.get_execution = AsyncMock(
+            return_value=ExecutionResult(
+                execution_id="exec-1",
+                status=ExecutionStatus.PENDING,
+            )
+        )
+
+        result = await client.wait_for_execution("exec-1", timeout=0.05, poll_interval=0.01)
+        assert result.status == ExecutionStatus.PENDING
 
     @pytest.mark.asyncio
     async def test_close(self, client):

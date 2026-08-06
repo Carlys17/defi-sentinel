@@ -8,15 +8,15 @@ import asyncio
 import json
 import logging
 from dataclasses import dataclass, field
-from enum import Enum
-from typing import Any, Optional
+from enum import StrEnum
+from typing import Any
 
 from config.settings import Settings, get_settings
 
 logger = logging.getLogger(__name__)
 
 
-class AgentState(str, Enum):
+class AgentState(StrEnum):
     IDLE = "idle"
     MONITORING = "monitoring"
     ANALYZING = "analyzing"
@@ -28,6 +28,7 @@ class AgentState(str, Enum):
 @dataclass
 class AgentDecision:
     """A decision made by the AI agent."""
+
     action: str
     reason: str
     priority: int  # 1 (highest) to 5 (lowest)
@@ -51,6 +52,7 @@ class AgentDecision:
 @dataclass
 class PortfolioState:
     """Current state of the monitored portfolio."""
+
     total_value_usd: float = 0.0
     positions: list[dict] = field(default_factory=list)
     health_factors: dict[str, float] = field(default_factory=dict)
@@ -80,10 +82,12 @@ class LLMClient:
     def _initialize(self):
         if self._settings.llm_provider.value == "openai":
             from openai import AsyncOpenAI
+
             self._client = AsyncOpenAI(api_key=self._settings.openai_api_key)
             self._model = self._settings.openai_model
         elif self._settings.llm_provider.value == "anthropic":
             from anthropic import AsyncAnthropic
+
             self._client = AsyncAnthropic(api_key=self._settings.anthropic_api_key)
             self._model = self._settings.anthropic_model
 
@@ -137,7 +141,9 @@ class LLMClient:
         schema: str,
     ) -> dict:
         """Get a structured JSON response matching a schema."""
-        enhanced_system = f"{system_prompt}\n\nYou MUST respond with valid JSON matching this schema:\n{schema}"
+        enhanced_system = (
+            f"{system_prompt}\n\nYou MUST respond with valid JSON matching this schema:\n{schema}"
+        )
         raw = await self.chat(enhanced_system, user_message, temperature=0.1)
         try:
             return json.loads(raw)
@@ -153,43 +159,37 @@ class DeFiSentinelAgent:
     makes decisions via LLM, and executes actions through KeeperHub.
     """
 
-    SYSTEM_PROMPT = """\
-You are DeFi Sentinel, an autonomous AI agent specialized in DeFi portfolio management and risk protection.
+    SYSTEM_PROMPT = (
+        "You are DeFi Sentinel, an autonomous AI agent specialized in DeFi "
+        "portfolio management and risk protection.\n\n"
+        "Your responsibilities:\n"
+        "1. MONITOR - Track portfolio positions, health factors, and market conditions\n"
+        "2. PROTECT - Prevent liquidations by suggesting collateral additions or repayments\n"
+        "3. OPTIMIZE - Identify yield optimization opportunities across protocols\n"
+        "4. REBALANCE - Maintain target portfolio allocations\n"
+        "5. ALERT - Notify users of critical events and opportunities\n\n"
+        "Decision-making principles:\n"
+        "- Always prioritize capital preservation over yield optimization\n"
+        "- Never suggest actions that exceed safety thresholds\n"
+        "- Provide clear reasoning for every decision\n"
+        "- Consider gas costs and slippage in all recommendations\n"
+        "- Be conservative with leverage and liquidation risks\n\n"
+        "Response format: Always return valid JSON with the following structure:\n"
+        '{\n    "decisions": [\n        {\n'
+        '            "action": "string - the action to take",\n'
+        '            "reason": "string - why this action is recommended",\n'
+        '            "priority": 1-5 (1=highest),\n'
+        '            "parameters": {},\n'
+        '            "estimated_usd_impact": 0.0,\n'
+        '            "requires_approval": true/false,\n'
+        '            "strategy": "string - which strategy this belongs to"\n'
+        "        }\n    ]\n}\n"
+    )
 
-Your responsibilities:
-1. MONITOR - Track portfolio positions, health factors, and market conditions
-2. PROTECT - Prevent liquidations by suggesting collateral additions or repayments
-3. OPTIMIZE - Identify yield optimization opportunities across protocols
-4. REBALANCE - Maintain target portfolio allocations
-5. ALERT - Notify users of critical events and opportunities
-
-Decision-making principles:
-- Always prioritize capital preservation over yield optimization
-- Never suggest actions that exceed safety thresholds
-- Provide clear reasoning for every decision
-- Consider gas costs and slippage in all recommendations
-- Be conservative with leverage and liquidation risks
-
-Response format: Always return valid JSON with the following structure:
-{
-    "decisions": [
-        {
-            "action": "string - the action to take",
-            "reason": "string - why this action is recommended",
-            "priority": 1-5 (1=highest),
-            "parameters": {},
-            "estimated_usd_impact": 0.0,
-            "requires_approval": true/false,
-            "strategy": "string - which strategy this belongs to"
-        }
-    ]
-}
-"""
-
-    def __init__(self, settings: Optional[Settings] = None):
+    def __init__(self, settings: Settings | None = None):
         self._settings = settings or get_settings()
         self._state = AgentState.IDLE
-        self._llm: Optional[LLMClient] = None
+        self._llm: LLMClient | None = None
         self._keeperhub = None
         self._strategies: dict[str, Any] = {}
         self._is_running = False
@@ -220,6 +220,7 @@ Response format: Always return valid JSON with the following structure:
         # Initialize KeeperHub
         if self._settings.is_keeperhub_configured():
             from src.keeperhub.client import KeeperHubClient
+
             self._keeperhub = KeeperHubClient(self._settings)
             health = await self._keeperhub.health_check()
             if health:
@@ -238,18 +239,12 @@ Response format: Always return valid JSON with the following structure:
     async def _initialize_strategies(self):
         """Initialize all strategy modules."""
         from src.strategies.liquidation_shield import LiquidationShield
-        from src.strategies.yield_optimizer import YieldOptimizer
         from src.strategies.rebalancer import PortfolioRebalancer
+        from src.strategies.yield_optimizer import YieldOptimizer
 
-        self._strategies["liquidation_shield"] = LiquidationShield(
-            self._settings, self._keeperhub
-        )
-        self._strategies["yield_optimizer"] = YieldOptimizer(
-            self._settings, self._keeperhub
-        )
-        self._strategies["rebalancer"] = PortfolioRebalancer(
-            self._settings, self._keeperhub
-        )
+        self._strategies["liquidation_shield"] = LiquidationShield(self._settings, self._keeperhub)
+        self._strategies["yield_optimizer"] = YieldOptimizer(self._settings, self._keeperhub)
+        self._strategies["rebalancer"] = PortfolioRebalancer(self._settings, self._keeperhub)
 
         logger.info(f"Initialized {len(self._strategies)} strategies")
 
@@ -291,29 +286,40 @@ Response format: Always return valid JSON with the following structure:
         self, recommendations: list[dict], portfolio: PortfolioState
     ) -> list[AgentDecision]:
         """Use LLM to process recommendations into final decisions."""
-        context = json.dumps({
-            "portfolio": portfolio.to_dict(),
-            "recommendations": recommendations,
-        }, indent=2, default=str)
+        context = json.dumps(
+            {
+                "portfolio": portfolio.to_dict(),
+                "recommendations": recommendations,
+            },
+            indent=2,
+            default=str,
+        )
 
         response = await self._llm.structured_response(
             system_prompt=self.SYSTEM_PROMPT,
             user_message=f"Analyze the following portfolio state and recommendations:\n\n{context}",
-            schema='{"decisions": [{"action": "string", "reason": "string", "priority": "number", "parameters": "object", "estimated_usd_impact": "number", "requires_approval": "boolean", "strategy": "string"}]}',
+            schema=(
+                '{"decisions": [{"action": "string", "reason": "string", '
+                '"priority": "number", "parameters": "object", '
+                '"estimated_usd_impact": "number", "requires_approval": "boolean", '
+                '"strategy": "string"}]}'
+            ),
         )
 
         decisions = []
         for item in response.get("decisions", []):
             try:
-                decisions.append(AgentDecision(
-                    action=item.get("action", ""),
-                    reason=item.get("reason", ""),
-                    priority=int(item.get("priority", 3)),
-                    parameters=item.get("parameters", {}),
-                    estimated_usd_impact=float(item.get("estimated_usd_impact", 0)),
-                    requires_approval=item.get("requires_approval", False),
-                    strategy=item.get("strategy", ""),
-                ))
+                decisions.append(
+                    AgentDecision(
+                        action=item.get("action", ""),
+                        reason=item.get("reason", ""),
+                        priority=int(item.get("priority", 3)),
+                        parameters=item.get("parameters", {}),
+                        estimated_usd_impact=float(item.get("estimated_usd_impact", 0)),
+                        requires_approval=item.get("requires_approval", False),
+                        strategy=item.get("strategy", ""),
+                    )
+                )
             except (TypeError, ValueError) as e:
                 logger.warning(f"Invalid decision format: {e}")
 
@@ -325,15 +331,17 @@ Response format: Always return valid JSON with the following structure:
         """Fallback rule-based decision making when LLM is unavailable."""
         decisions = []
         for rec in recommendations:
-            decisions.append(AgentDecision(
-                action=rec.get("action", ""),
-                reason=rec.get("reason", ""),
-                priority=rec.get("priority", 3),
-                parameters=rec.get("parameters", {}),
-                estimated_usd_impact=rec.get("estimated_usd_impact", 0),
-                requires_approval=rec.get("requires_approval", True),
-                strategy=rec.get("strategy", ""),
-            ))
+            decisions.append(
+                AgentDecision(
+                    action=rec.get("action", ""),
+                    reason=rec.get("reason", ""),
+                    priority=rec.get("priority", 3),
+                    parameters=rec.get("parameters", {}),
+                    estimated_usd_impact=rec.get("estimated_usd_impact", 0),
+                    requires_approval=rec.get("requires_approval", True),
+                    strategy=rec.get("strategy", ""),
+                )
+            )
         decisions.sort(key=lambda d: d.priority)
         return decisions
 
@@ -447,7 +455,11 @@ Response format: Always return valid JSON with the following structure:
         # Step 3: Execute high-priority decisions
         for decision in decisions:
             if decision.priority <= 2:  # Execute high-priority items
-                if not decision.requires_approval or decision.estimated_usd_impact <= self._settings.auto_approve_max_usd:
+                auto_ok = (
+                    not decision.requires_approval
+                    or decision.estimated_usd_impact <= self._settings.auto_approve_max_usd
+                )
+                if auto_ok:
                     await self.execute_decision(decision)
                 else:
                     logger.info(
@@ -467,7 +479,7 @@ Response format: Always return valid JSON with the following structure:
 
         try:
             # Fetch wallet integration for balance info
-            wallet_info = await self._keeperhub.get_wallet_integration()
+            await self._keeperhub.get_wallet_integration()
 
             # Search for lending protocol positions
             lending_protocols = ["aave-v3", "compound", "morpho"]
@@ -477,19 +489,19 @@ Response format: Always return valid JSON with the following structure:
                     # Parse positions from protocol actions
                     for action in actions:
                         if "supply" in str(action).lower() or "borrow" in str(action).lower():
-                            portfolio.positions.append({
-                                "token_address": action.get("token_address", ""),
-                                "protocol": protocol,
-                                "usd_value": float(action.get("usd_value", 0)),
-                                "amount": action.get("amount", "0"),
-                            })
+                            portfolio.positions.append(
+                                {
+                                    "token_address": action.get("token_address", ""),
+                                    "protocol": protocol,
+                                    "usd_value": float(action.get("usd_value", 0)),
+                                    "amount": action.get("amount", "0"),
+                                }
+                            )
                 except Exception as e:
                     logger.debug(f"Failed to fetch {protocol} positions: {e}")
 
             # Calculate total value
-            portfolio.total_value_usd = sum(
-                p.get("usd_value", 0) for p in portfolio.positions
-            )
+            portfolio.total_value_usd = sum(p.get("usd_value", 0) for p in portfolio.positions)
 
             # Fetch health factors from lending protocols
             try:

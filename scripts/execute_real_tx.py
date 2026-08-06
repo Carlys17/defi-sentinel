@@ -22,15 +22,13 @@ import argparse
 import asyncio
 import json
 import sys
-import time
 from pathlib import Path
-from typing import Optional
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from config.settings import Settings, get_settings
-from src.keeperhub.client import KeeperHubClient, ExecutionResult, ExecutionStatus
-from src.observability.audit import AuditTrail, AuditEventType
+from config.settings import get_settings
+from src.keeperhub.client import ExecutionResult, ExecutionStatus, KeeperHubClient
+from src.observability.audit import AuditEventType, AuditTrail
 
 # Wallet integration ID from KeeperHub
 WALLET_ID = "q457sq2pyt2dc01g3i48j"
@@ -41,14 +39,17 @@ async def check_wallet_balance(client: KeeperHubClient) -> dict:
     """Check wallet balance by attempting a simulation."""
     print("\nChecking wallet balance...")
     try:
-        result = await client._execute_tool("execute_transfer", {
-            "chain_id": "84532",
-            "to_address": WALLET_ADDRESS,
-            "amount": "0.0001",  # API expects BASE units, not wei
-            "simulate": True,
-            "integrationId": WALLET_ID,
-        })
-        
+        result = await client._execute_tool(
+            "execute_transfer",
+            {
+                "chain_id": "84532",
+                "to_address": WALLET_ADDRESS,
+                "amount": "0.0001",  # API expects BASE units, not wei
+                "simulate": True,
+                "integrationId": WALLET_ID,
+            },
+        )
+
         text = result.get("content", [{}])[0].get("text", "")
         print(f"Balance check result: {text[:500]}")
         return result
@@ -72,7 +73,7 @@ async def execute_transfer(
     }
 
     print(f"\nExecuting transfer: {amount} BASE to {to_address}")
-    print(f"  Chain: Base Sepolia (84532)")
+    print("  Chain: Base Sepolia (84532)")
     print(f"  From: {WALLET_ADDRESS}")
     print(f"  Simulate: {simulate}")
 
@@ -136,7 +137,7 @@ async def execute_real_transaction(simulate: bool = False) -> dict:
 
     # Step 2: Check wallet balance
     print("\n[2/5] Checking wallet balance...")
-    balance_result = await check_wallet_balance(client)
+    await check_wallet_balance(client)
 
     # Step 3: Simulate transfer
     print("\n[3/5] Simulating transfer...")
@@ -178,9 +179,9 @@ async def execute_real_transaction(simulate: bool = False) -> dict:
     if result.transaction_hash:
         print(f"  ✅ Transaction Hash: {result.transaction_hash}")
         print(f"  🔗 Explorer: https://sepolia.basescan.org/tx/{result.transaction_hash}")
-        print(f"\n  📝 SAVE THIS FOR YOUR HACKATHON SUBMISSION!")
+        print("\n  📝 SAVE THIS FOR YOUR HACKATHON SUBMISSION!")
     else:
-        print(f"  ⏳ Transaction pending...")
+        print("  ⏳ Transaction pending...")
         if result.execution_id:
             print(f"  Execution ID: {result.execution_id}")
 

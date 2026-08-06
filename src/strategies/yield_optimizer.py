@@ -6,7 +6,7 @@ capital reallocation to maximize returns while managing risk.
 
 import logging
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any
 
 from config.settings import Settings
 
@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class YieldOpportunity:
     """Represents a yield opportunity on a protocol."""
+
     protocol: str
     market: str
     token: str
@@ -63,7 +64,8 @@ class YieldOptimizer:
 
             # Find better opportunities for this token
             better_options = [
-                opp for opp in opportunities
+                opp
+                for opp in opportunities
                 if opp.token == token and opp.apr > current_apr + self.MIN_APR_IMPROVEMENT
             ]
 
@@ -72,29 +74,31 @@ class YieldOptimizer:
                 better_options.sort(key=lambda o: o.apr / max(o.risk_score, 1))
                 best = better_options[0]
 
-                recommendations.append({
-                    "action": "reallocate_yield",
-                    "reason": (
-                        f"Yield opportunity: {best.protocol} offers {best.apr:.2f}% APR "
-                        f"for {best.token} vs current {current_apr:.2f}% on "
-                        f"{current_protocol}. Potential improvement: "
-                        f"{best.apr - current_apr:.2f}% APR on ${amount_usd:,.2f}."
-                    ),
-                    "priority": 3 if best.risk_score <= self.MAX_AUTO_RISK_SCORE else 4,
-                    "parameters": {
-                        "from_protocol": current_protocol,
-                        "to_protocol": best.protocol,
-                        "token": token,
-                        "amount_usd": amount_usd,
-                        "current_apr": current_apr,
-                        "new_apr": best.apr,
-                    },
-                    "estimated_usd_impact": (
-                        amount_usd * (best.apr - current_apr) / 100
-                    ),  # annual impact
-                    "requires_approval": best.risk_score > self.MAX_AUTO_RISK_SCORE,
-                    "strategy": "yield_optimizer",
-                })
+                recommendations.append(
+                    {
+                        "action": "reallocate_yield",
+                        "reason": (
+                            f"Yield opportunity: {best.protocol} offers {best.apr:.2f}% APR "
+                            f"for {best.token} vs current {current_apr:.2f}% on "
+                            f"{current_protocol}. Potential improvement: "
+                            f"{best.apr - current_apr:.2f}% APR on ${amount_usd:,.2f}."
+                        ),
+                        "priority": 3 if best.risk_score <= self.MAX_AUTO_RISK_SCORE else 4,
+                        "parameters": {
+                            "from_protocol": current_protocol,
+                            "to_protocol": best.protocol,
+                            "token": token,
+                            "amount_usd": amount_usd,
+                            "current_apr": current_apr,
+                            "new_apr": best.apr,
+                        },
+                        "estimated_usd_impact": (
+                            amount_usd * (best.apr - current_apr) / 100
+                        ),  # annual impact
+                        "requires_approval": best.risk_score > self.MAX_AUTO_RISK_SCORE,
+                        "strategy": "yield_optimizer",
+                    }
+                )
 
         return recommendations
 
@@ -157,9 +161,7 @@ class YieldOptimizer:
 
             for protocol in protocols:
                 try:
-                    actions = await self._keeperhub.search_protocol_actions(
-                        protocol=protocol
-                    )
+                    actions = await self._keeperhub.search_protocol_actions(protocol=protocol)
                     all_actions.extend(actions)
                 except Exception as e:
                     logger.warning(f"Failed to fetch {protocol} actions: {e}")

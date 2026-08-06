@@ -50,26 +50,28 @@ class PortfolioRebalancer:
                 direction = "reduce" if deviation > 0 else "increase"
                 amount_to_move = abs(deviation) / 100 * total_value
 
-                recommendations.append({
-                    "action": f"rebalance_{direction}",
-                    "reason": (
-                        f"Portfolio rebalance: {token[:10]}... allocation is "
-                        f"{current_pct:.1f}% vs target {target_pct:.1f}% "
-                        f"(deviation: {deviation:+.1f}%). "
-                        f"Need to {direction} by ${amount_to_move:,.2f}."
-                    ),
-                    "priority": 3,
-                    "parameters": {
-                        "token": token,
-                        "direction": direction,
-                        "amount_usd": amount_to_move,
-                        "current_pct": current_pct,
-                        "target_pct": target_pct,
-                    },
-                    "estimated_usd_impact": amount_to_move * 0.001,  # estimated gas/slippage
-                    "requires_approval": amount_to_move > self._settings.auto_approve_max_usd,
-                    "strategy": "rebalancer",
-                })
+                recommendations.append(
+                    {
+                        "action": f"rebalance_{direction}",
+                        "reason": (
+                            f"Portfolio rebalance: {token[:10]}... allocation is "
+                            f"{current_pct:.1f}% vs target {target_pct:.1f}% "
+                            f"(deviation: {deviation:+.1f}%). "
+                            f"Need to {direction} by ${amount_to_move:,.2f}."
+                        ),
+                        "priority": 3,
+                        "parameters": {
+                            "token": token,
+                            "direction": direction,
+                            "amount_usd": amount_to_move,
+                            "current_pct": current_pct,
+                            "target_pct": target_pct,
+                        },
+                        "estimated_usd_impact": amount_to_move * 0.001,  # estimated gas/slippage
+                        "requires_approval": amount_to_move > self._settings.auto_approve_max_usd,
+                        "strategy": "rebalancer",
+                    }
+                )
 
         return recommendations
 
@@ -83,10 +85,7 @@ class PortfolioRebalancer:
         direction = params.get("direction", "")
         amount_usd = params.get("amount_usd", 0)
 
-        logger.info(
-            f"Rebalancing: {direction} {token[:10]}... "
-            f"by ${amount_usd:,.2f}"
-        )
+        logger.info(f"Rebalancing: {direction} {token[:10]}... by ${amount_usd:,.2f}")
 
         # Simulate first
         sim_result = await self._keeperhub.execute_transfer(
@@ -124,9 +123,7 @@ class PortfolioRebalancer:
             allocation[token] = allocation.get(token, 0.0) + usd_value
         return allocation
 
-    def _get_current_pct(
-        self, allocation: dict[str, float], token: str, total: float
-    ) -> float:
+    def _get_current_pct(self, allocation: dict[str, float], token: str, total: float) -> float:
         """Get current allocation percentage for a token."""
         if total == 0:
             return 0.0

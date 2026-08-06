@@ -2,7 +2,6 @@
 
 import asyncio
 import logging
-import signal
 import sys
 from pathlib import Path
 
@@ -12,12 +11,11 @@ from rich.panel import Panel
 from rich.table import Table
 
 from config.settings import Settings, get_settings
-from src.agent.core import DeFiSentinelAgent, AgentState
-from src.notifications.base import NotificationManager, NotificationLevel, LoggerProvider
+from src.agent.core import DeFiSentinelAgent
+from src.notifications.base import LoggerProvider, NotificationLevel, NotificationManager
 from src.notifications.discord import DiscordProvider
 from src.notifications.telegram import TelegramProvider
-from src.observability.audit import AuditTrail, AuditEventType
-from src.observability.metrics import MetricsCollector
+from src.observability.audit import AuditEventType, AuditTrail
 
 app = typer.Typer(
     name="defi-sentinel",
@@ -64,9 +62,7 @@ def create_notification_manager(settings: Settings) -> NotificationManager:
 
 @app.command()
 def start(
-    interval: int = typer.Option(
-        None, "--interval", "-i", help="Monitoring interval in seconds"
-    ),
+    interval: int = typer.Option(None, "--interval", "-i", help="Monitoring interval in seconds"),
 ):
     """Start the DeFi Sentinel agent."""
     settings = get_settings()
@@ -89,7 +85,6 @@ def start(
     agent = DeFiSentinelAgent(settings)
     notification_mgr = create_notification_manager(settings)
     audit_trail = AuditTrail()
-    metrics = MetricsCollector()
 
     # Initialize
     async def run():

@@ -17,10 +17,8 @@ import asyncio
 import hashlib
 import json
 import logging
-import uuid
 from dataclasses import dataclass, field
-from enum import Enum
-from typing import Optional
+from enum import StrEnum
 
 import httpx
 
@@ -29,7 +27,7 @@ from config.settings import Settings
 logger = logging.getLogger(__name__)
 
 
-class ExecutionStatus(str, Enum):
+class ExecutionStatus(StrEnum):
     PENDING = "pending"
     RUNNING = "running"
     SUCCESS = "success"
@@ -43,7 +41,7 @@ class Workflow:
     name: str
     description: str
     enabled: bool = True
-    project_id: Optional[str] = None
+    project_id: str | None = None
     tag_ids: list[str] = field(default_factory=list)
 
 
@@ -51,11 +49,11 @@ class Workflow:
 class ExecutionResult:
     execution_id: str
     status: ExecutionStatus
-    transaction_hash: Optional[str] = None
-    chain: Optional[str] = None
-    gas_used: Optional[int] = None
-    error: Optional[str] = None
-    result: Optional[dict] = None
+    transaction_hash: str | None = None
+    chain: str | None = None
+    gas_used: int | None = None
+    error: str | None = None
+    result: dict | None = None
 
     @property
     def is_success(self) -> bool:
@@ -84,14 +82,13 @@ class KeeperHubClient:
 
     def __init__(self, settings: Settings):
         self._settings = settings
-        self._base_url = "https://app.keeperhub.com"
-        self._session_id: Optional[str] = None
+        self._session_id: str | None = None
         self._initialized = False
         self._retry_count = 3
         self._retry_delay = 2.0
 
         self._client = httpx.AsyncClient(
-            base_url=self._base_url,
+            base_url=settings.keeperhub_mcp_url.rstrip("/"),
             headers={
                 "Content-Type": "application/json",
                 "Authorization": f"Bearer {settings.keeperhub_api_key}",
@@ -132,7 +129,7 @@ class KeeperHubClient:
                 },
             )
             response.raise_for_status()
-            result = response.json()
+            response.json()
 
             # Get session ID from response header
             self._session_id = response.headers.get("mcp-session-id")
@@ -168,7 +165,7 @@ class KeeperHubClient:
         tool_name: str,
         params: dict,
         simulate: bool = False,
-        idempotency_key: Optional[str] = None,
+        idempotency_key: str | None = None,
     ) -> dict:
         """Execute an MCP tool via KeeperHub's HTTP endpoint.
 
@@ -233,7 +230,7 @@ class KeeperHubClient:
             except httpx.HTTPStatusError as e:
                 status = e.response.status_code
                 if status == 429:
-                    wait_time = self._retry_delay * (2 ** attempt)
+                    wait_time = self._retry_delay * (2**attempt)
                     logger.warning(f"Rate limited, waiting {wait_time}s...")
                     await asyncio.sleep(wait_time)
                     continue
@@ -255,16 +252,20 @@ class KeeperHubClient:
             except (httpx.ConnectError, httpx.TimeoutException) as e:
                 if attempt == self._retry_count:
                     raise
-                wait_time = self._retry_delay * (2 ** attempt)
+                wait_time = self._retry_delay * (2**attempt)
                 logger.warning(f"Connection error, retrying in {wait_time}s: {e}")
                 await asyncio.sleep(wait_time)
 
         raise Exception(f"Tool '{tool_name}' failed after {self._retry_count} retries")
 
     def _generate_idempotency_key(self, tool_name: str, params: dict) -> str:
-        """Generate an idempotency key for retry-safe execution."""
+        """Generate a deterministic idempotency key for retry-safe execution.
+
+        Keys must be stable for identical arguments so that a retry of the
+        same operation is deduplicated by KeeperHub instead of double-spending.
+        """
         payload = json.dumps(
-            {"tool": tool_name, "params": params, "uuid": str(uuid.uuid4())},
+            {"tool": tool_name, "params": params},
             sort_keys=True,
         )
         return hashlib.sha256(payload.encode()).hexdigest()[:32]
@@ -279,7 +280,7 @@ class KeeperHubClient:
 
     # ---- Workflow Management ----
 
-    async def list_workflows(self, project_id: Optional[str] = None) -> list[Workflow]:
+    async def list_workflows(self, project_id: str | None = None) -> list[Workflow]:
         """List all workflows, optionally filtered by project."""
         params = {"projectId": project_id} if project_id else {}
         result = await self._execute_tool("list_workflows", params)
@@ -324,7 +325,7 @@ class KeeperHubClient:
     async def execute_workflow(
         self,
         workflow_id: str,
-        inputs: Optional[dict] = None,
+        inputs: dict | None = None,
     ) -> ExecutionResult:
         """Execute a workflow and return execution result."""
         result = await self._execute_tool(
@@ -354,6 +355,38 @@ class KeeperHubClient:
             result=result,
         )
 
+    async def wait_for_execution(
+        self,
+        execution_id: str,
+        timeout: float = 120.0,
+        poll_interval: float = 5.0,
+    ) -> ExecutionResult:
+        """Poll an execution until it reaches a terminal state.
+
+        Used after broadcasting a transaction so the agent observes the
+        final outcome (completed / failed) instead of a raw ``pending``.
+
+        Args:
+            execution_id: Execution ID to poll.
+            timeout: Maximum total wait time in seconds.
+            poll_interval: Delay between status polls in seconds.
+
+        Returns:
+            The terminal ExecutionResult.
+        """
+        deadline = asyncio.get_event_loop().time() + timeout
+        while True:
+            result = await self.get_execution(execution_id)
+            if result.status in (ExecutionStatus.SUCCESS, ExecutionStatus.FAILED):
+                return result
+            if asyncio.get_event_loop().time() >= deadline:
+                logger.warning(
+                    f"Execution {execution_id} did not reach terminal state "
+                    f"within {timeout}s (last status: {result.status.value})"
+                )
+                return result
+            await asyncio.sleep(poll_interval)
+
     async def ai_generate_workflow(self, description: str) -> str:
         """Generate a workflow from natural language description."""
         result = await self._execute_tool(
@@ -375,7 +408,7 @@ class KeeperHubClient:
         self,
         to_address: str,
         amount: str,
-        token_address: Optional[str] = None,
+        token_address: str | None = None,
         simulate: bool = False,
     ) -> ExecutionResult:
         """Execute a token transfer via KeeperHub.
@@ -407,9 +440,7 @@ class KeeperHubClient:
 
         return ExecutionResult(
             execution_id=result.get("executionId", result.get("execution_id", "")),
-            status=ExecutionStatus(
-                result.get("status", "simulated" if simulate else "pending")
-            ),
+            status=ExecutionStatus(result.get("status", "simulated" if simulate else "pending")),
             transaction_hash=result.get("transactionHash", result.get("transaction_hash")),
             chain=result.get("chain"),
             gas_used=result.get("gasUsed", result.get("gas_used")),
@@ -442,9 +473,7 @@ class KeeperHubClient:
 
         return ExecutionResult(
             execution_id=result.get("executionId", result.get("execution_id", "")),
-            status=ExecutionStatus(
-                result.get("status", "simulated" if simulate else "pending")
-            ),
+            status=ExecutionStatus(result.get("status", "simulated" if simulate else "pending")),
             transaction_hash=result.get("transactionHash", result.get("transaction_hash")),
             chain=result.get("chain"),
             gas_used=result.get("gasUsed", result.get("gas_used")),
@@ -478,8 +507,8 @@ class KeeperHubClient:
 
     async def search_protocol_actions(
         self,
-        protocol: Optional[str] = None,
-        action_type: Optional[str] = None,
+        protocol: str | None = None,
+        action_type: str | None = None,
     ) -> list[dict]:
         """Search for available DeFi protocol actions."""
         params = {}
@@ -511,9 +540,7 @@ class KeeperHubClient:
             **params,
         }
 
-        idempotency_key = self._generate_idempotency_key(
-            "execute_protocol_action", action_params
-        )
+        idempotency_key = self._generate_idempotency_key("execute_protocol_action", action_params)
         result = await self._execute_tool(
             "execute_protocol_action",
             action_params,
@@ -523,9 +550,7 @@ class KeeperHubClient:
 
         return ExecutionResult(
             execution_id=result.get("executionId", result.get("execution_id", "")),
-            status=ExecutionStatus(
-                result.get("status", "simulated" if simulate else "pending")
-            ),
+            status=ExecutionStatus(result.get("status", "simulated" if simulate else "pending")),
             transaction_hash=result.get("transactionHash", result.get("transaction_hash")),
             chain=result.get("chain"),
             gas_used=result.get("gasUsed", result.get("gas_used")),

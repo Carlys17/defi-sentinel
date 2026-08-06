@@ -1,19 +1,18 @@
 """Application settings using Pydantic Settings."""
 
-from enum import Enum
+from enum import StrEnum
 from functools import lru_cache
-from typing import Optional
 
-from pydantic import Field, field_validator
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-class LLMProvider(str, Enum):
+class LLMProvider(StrEnum):
     OPENAI = "openai"
     ANTHROPIC = "anthropic"
 
 
-class Chain(str, Enum):
+class Chain(StrEnum):
     ETHEREUM_SEPOLIA = "ethereum_sepolia"
     BASE_SEPOLIA = "base_sepolia"
     ARBITRUM_SEPOLIA = "arbitrum_sepolia"
@@ -23,7 +22,7 @@ class Chain(str, Enum):
     ETHEREUM_MAINNET = "ethereum_mainnet"
 
 
-class LogLevel(str, Enum):
+class LogLevel(StrEnum):
     DEBUG = "DEBUG"
     INFO = "INFO"
     WARNING = "WARNING"
@@ -32,6 +31,7 @@ class LogLevel(str, Enum):
 
 class PortfolioTarget(BaseSettings):
     """Single portfolio allocation target."""
+
     token_address: str
     percentage: float
 
@@ -99,10 +99,12 @@ class Settings(BaseSettings):
         for item in self.portfolio_targets.split(";"):
             parts = item.strip().split(":")
             if len(parts) == 2:
-                targets.append({
-                    "token_address": parts[0].strip(),
-                    "percentage": float(parts[1].strip()),
-                })
+                targets.append(
+                    {
+                        "token_address": parts[0].strip(),
+                        "percentage": float(parts[1].strip()),
+                    }
+                )
         return targets
 
     def is_telegram_configured(self) -> bool:

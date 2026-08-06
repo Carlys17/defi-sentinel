@@ -140,7 +140,7 @@ DeFi Sentinel interacts with major DeFi protocols through KeeperHub's plugin sys
 
 ## Transaction Proof
 
-Two verified onchain transactions executed through KeeperHub:
+Three verified onchain transactions executed through KeeperHub:
 
 ### Transaction #1 — Initial Verification (Ethereum Sepolia)
 
@@ -168,7 +168,19 @@ Two verified onchain transactions executed through KeeperHub:
 | **Method** | Full demo: simulation → execution → audit trail |
 | **Wallet** | `0x749B59edC27F53E74fF93A6ef32a57be6E5F05f3` (KeeperHub Agentic Wallet) |
 
-Both transactions were executed through the KeeperHub MCP server using JSON-RPC 2.0 over Streamable HTTP, with pre-execution simulation, idempotency keys, and full audit trail logging.
+### Transaction #3 — Second Verification (Base Sepolia)
+
+**[`0x9a9668a32a18637c86d5484bcf57820fa282bed9f841337f5c0c3889d5c5ba97`](https://sepolia.basescan.org/tx/0x9a9668a32a18637c86d5484bcf57820fa282bed9f841337f5c0c3889d5c5ba97)**
+
+| Detail | Value |
+|---|---|
+| **Chain** | Base Sepolia |
+| **Amount** | 0.001 BASE |
+| **Status** | ✅ Completed |
+| **Block** | 45114144 |
+| **Wallet** | `0x749B59edC27F53E74fF93A6ef32a57be6E5F05f3` (KeeperHub Agentic Wallet) |
+
+All three transactions were executed through the KeeperHub MCP server using JSON-RPC 2.0 over Streamable HTTP, with pre-execution simulation, idempotency keys, and full audit trail logging.
 
 ---
 

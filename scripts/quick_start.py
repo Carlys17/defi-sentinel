@@ -22,8 +22,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from config.settings import Settings, get_settings
-from src.keeperhub.client import KeeperHubClient, ExecutionResult, ExecutionStatus
-from src.observability.audit import AuditTrail, AuditEventType
+from src.keeperhub.client import KeeperHubClient
+from src.observability.audit import AuditEventType, AuditTrail
+
 
 async def check_setup(settings: Settings) -> list[str]:
     """Check if environment is properly configured."""
@@ -33,6 +34,7 @@ async def check_setup(settings: Settings) -> list[str]:
         issues.append("❌ KEEPERHUB_API_KEY not set. Get one at https://app.keeperhub.com")
 
     return issues
+
 
 async def execute_first_transaction(settings: Settings, simulate: bool = False) -> dict:
     """Execute the first onchain transaction via KeeperHub."""
@@ -75,8 +77,8 @@ async def execute_first_transaction(settings: Settings, simulate: bool = False) 
     # Step 4: List action schemas
     print("\n[4/6] Listing action schemas...")
     try:
-        schemas = await client.list_action_schemas()
-        print(f"  ✅ Found action schemas")
+        await client.list_action_schemas()
+        print("  ✅ Found action schemas")
     except Exception as e:
         print(f"  ⚠️  Could not list action schemas: {e}")
 
@@ -110,16 +112,16 @@ async def execute_first_transaction(settings: Settings, simulate: bool = False) 
         )
 
         print(f"\n  {'=' * 50}")
-        print(f"  TRANSACTION RESULT")
+        print("  TRANSACTION RESULT")
         print(f"  {'=' * 50}")
         print(f"  Status: {result.status.value}")
         print(f"  Chain: {result.chain}")
 
         if result.transaction_hash:
             print(f"  ✅ Transaction Hash: {result.transaction_hash}")
-            print(f"\n  📝 SAVE THIS HASH FOR YOUR HACKATHON SUBMISSION!")
+            print("\n  📝 SAVE THIS HASH FOR YOUR HACKATHON SUBMISSION!")
         else:
-            print(f"  ⏳ Transaction pending...")
+            print("  ⏳ Transaction pending...")
             if result.execution_id:
                 print(f"  Execution ID: {result.execution_id}")
 
@@ -142,13 +144,14 @@ async def execute_first_transaction(settings: Settings, simulate: bool = False) 
 
     except Exception as e:
         print(f"\n  ❌ Execution failed: {e}")
-        print(f"\n  Troubleshooting:")
-        print(f"  1. Check your KeeperHub API key is valid")
-        print(f"  2. Verify wallet is configured in KeeperHub dashboard")
-        print(f"  3. Check Discord: https://discord.gg/keeperhub")
+        print("\n  Troubleshooting:")
+        print("  1. Check your KeeperHub API key is valid")
+        print("  2. Verify wallet is configured in KeeperHub dashboard")
+        print("  3. Check Discord: https://discord.gg/keeperhub")
         return {"error": str(e)}
     finally:
         await client.close()
+
 
 async def main():
     parser = argparse.ArgumentParser(description="DeFi Sentinel - Quick Start")
@@ -189,6 +192,7 @@ async def main():
     print("  3. Record demo video showing the execution")
     print("  4. Submit to hackathon with transaction link")
     print("=" * 70)
+
 
 if __name__ == "__main__":
     asyncio.run(main())

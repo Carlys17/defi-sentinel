@@ -1,6 +1,7 @@
 """Prometheus metrics for DeFi Sentinel."""
 
 import logging
+
 from prometheus_client import Counter, Gauge, Histogram, Summary
 
 logger = logging.getLogger(__name__)
@@ -107,15 +108,11 @@ class MetricsCollector:
         MONITORING_CYCLES_TOTAL.inc()
         MONITORING_CYCLE_DURATION.observe(duration)
 
-    def record_decision(
-        self, strategy: str, action: str, executed: bool = False, status: str = ""
-    ):
+    def record_decision(self, strategy: str, action: str, executed: bool = False, status: str = ""):
         """Record a decision."""
         DECISIONS_TOTAL.labels(strategy=strategy, action=action).inc()
         if executed:
-            DECISION_EXECUTIONS_TOTAL.labels(
-                strategy=strategy, status=status
-            ).inc()
+            DECISION_EXECUTIONS_TOTAL.labels(strategy=strategy, status=status).inc()
 
     def record_portfolio_update(
         self, value_usd: float, positions_count: int, min_health_factor: float
@@ -125,9 +122,7 @@ class MetricsCollector:
         PORTFOLIO_POSITIONS_COUNT.set(positions_count)
         HEALTH_FACTOR_MIN.set(min_health_factor)
 
-    def record_transaction(
-        self, status: str, chain: str, gas_used: int = 0, value_usd: float = 0
-    ):
+    def record_transaction(self, status: str, chain: str, gas_used: int = 0, value_usd: float = 0):
         """Record a transaction."""
         TRANSACTIONS_TOTAL.labels(status=status, chain=chain).inc()
         if gas_used:

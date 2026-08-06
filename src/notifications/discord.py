@@ -31,9 +31,7 @@ class DiscordProvider(NotificationProvider):
     async def send(self, notification: Notification) -> bool:
         """Send a notification via Discord webhook."""
         try:
-            color = self.EMBED_COLORS.get(
-                notification.level, 0x0099FF
-            )
+            color = self.EMBED_COLORS.get(notification.level, 0x0099FF)
 
             payload = {
                 "embeds": [
@@ -41,9 +39,7 @@ class DiscordProvider(NotificationProvider):
                         "title": notification.title,
                         "description": notification.message[:1000],  # Discord limit
                         "color": color,
-                        "footer": {
-                            "text": "DeFi Sentinel"
-                        },
+                        "footer": {"text": "DeFi Sentinel"},
                     }
                 ]
             }

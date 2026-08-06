@@ -6,7 +6,7 @@ by adding collateral or repaying debt when health factors approach danger zones.
 
 import logging
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any
 
 from config.settings import Settings
 
@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class LendingPosition:
     """Represents a lending position on a protocol."""
+
     protocol: str  # aave-v3, compound, etc.
     market: str  # e.g., "USDC"
     supplied_amount: float
@@ -57,66 +58,72 @@ class LiquidationShield:
         for pos in positions:
             # Critical: health factor below critical threshold
             if pos.health_factor <= self._settings.liquidation_critical:
-                recommendations.append({
-                    "action": "emergency_repay_debt",
-                    "reason": (
-                        f"CRITICAL: {pos.protocol} {pos.market} position has "
-                        f"health factor {pos.health_factor:.2f} (critical threshold: "
-                        f"{self._settings.liquidation_critical}). Immediate debt "
-                        f"repayment required to avoid liquidation."
-                    ),
-                    "priority": 1,
-                    "parameters": {
-                        "protocol": pos.protocol,
-                        "market": pos.market,
-                        "action": "repay",
-                        "repay_percentage": 100,  # repay all
-                    },
-                    "estimated_usd_impact": pos.borrowed_usd,
-                    "requires_approval": False,  # emergency auto-execute
-                    "strategy": "liquidation_shield",
-                })
+                recommendations.append(
+                    {
+                        "action": "emergency_repay_debt",
+                        "reason": (
+                            f"CRITICAL: {pos.protocol} {pos.market} position has "
+                            f"health factor {pos.health_factor:.2f} (critical threshold: "
+                            f"{self._settings.liquidation_critical}). Immediate debt "
+                            f"repayment required to avoid liquidation."
+                        ),
+                        "priority": 1,
+                        "parameters": {
+                            "protocol": pos.protocol,
+                            "market": pos.market,
+                            "action": "repay",
+                            "repay_percentage": 100,  # repay all
+                        },
+                        "estimated_usd_impact": pos.borrowed_usd,
+                        "requires_approval": False,  # emergency auto-execute
+                        "strategy": "liquidation_shield",
+                    }
+                )
 
             # Warning: health factor below warning threshold
             elif pos.health_factor <= self._settings.liquidation_threshold:
-                recommendations.append({
-                    "action": "add_collateral",
-                    "reason": (
-                        f"WARNING: {pos.protocol} {pos.market} position has "
-                        f"health factor {pos.health_factor:.2f} (warning threshold: "
-                        f"{self._settings.liquidation_threshold}). Adding collateral "
-                        f"to improve safety margin."
-                    ),
-                    "priority": 2,
-                    "parameters": {
-                        "protocol": pos.protocol,
-                        "market": pos.market,
-                        "action": "supply",
-                        "target_health_factor": 2.0,
-                    },
-                    "estimated_usd_impact": self._calculate_collateral_needed(pos),
-                    "requires_approval": True,
-                    "strategy": "liquidation_shield",
-                })
+                recommendations.append(
+                    {
+                        "action": "add_collateral",
+                        "reason": (
+                            f"WARNING: {pos.protocol} {pos.market} position has "
+                            f"health factor {pos.health_factor:.2f} (warning threshold: "
+                            f"{self._settings.liquidation_threshold}). Adding collateral "
+                            f"to improve safety margin."
+                        ),
+                        "priority": 2,
+                        "parameters": {
+                            "protocol": pos.protocol,
+                            "market": pos.market,
+                            "action": "supply",
+                            "target_health_factor": 2.0,
+                        },
+                        "estimated_usd_impact": self._calculate_collateral_needed(pos),
+                        "requires_approval": True,
+                        "strategy": "liquidation_shield",
+                    }
+                )
 
             # Info: approaching threshold
             elif pos.health_factor <= self._settings.liquidation_threshold * 1.2:
-                recommendations.append({
-                    "action": "monitor_closely",
-                    "reason": (
-                        f"INFO: {pos.protocol} {pos.market} position health factor "
-                        f"{pos.health_factor:.2f} is approaching warning threshold. "
-                        f"Monitoring closely."
-                    ),
-                    "priority": 4,
-                    "parameters": {
-                        "protocol": pos.protocol,
-                        "market": pos.market,
-                    },
-                    "estimated_usd_impact": 0,
-                    "requires_approval": False,
-                    "strategy": "liquidation_shield",
-                })
+                recommendations.append(
+                    {
+                        "action": "monitor_closely",
+                        "reason": (
+                            f"INFO: {pos.protocol} {pos.market} position health factor "
+                            f"{pos.health_factor:.2f} is approaching warning threshold. "
+                            f"Monitoring closely."
+                        ),
+                        "priority": 4,
+                        "parameters": {
+                            "protocol": pos.protocol,
+                            "market": pos.market,
+                        },
+                        "estimated_usd_impact": 0,
+                        "requires_approval": False,
+                        "strategy": "liquidation_shield",
+                    }
+                )
 
         return recommendations
 

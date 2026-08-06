@@ -69,6 +69,16 @@ line-length = 100
 target-version = "py311"
 select = ["E", "F", "I", "N", "W", "UP", "B", "C4", "SIM"]
 
+[tool.ruff.lint.per-file-ignores]
+# One-shot demo/video generation scripts (ffmpeg/PIL one-liners).
+"scripts/add_ambient_music.py" = ["E501", "E701", "E702", "E741", "E722", "E402", "SIM105"]
+"scripts/build_final_video.py" = ["E501", "E701", "E702", "E741", "E722", "E402"]
+"scripts/compose_ultra.py" = ["E501", "E701", "E702"]
+"scripts/dashscope_gen.py" = ["E501", "E701", "E702", "E722", "SIM105"]
+"scripts/ds_gen_all.py" = ["E501", "E701", "E702"]
+"scripts/ds_probe.py" = ["E501", "E701", "E702"]
+"scripts/ds_retry_failed.py" = ["E501", "E701", "E702"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"

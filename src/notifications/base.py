@@ -3,13 +3,12 @@
 import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from enum import Enum
-from typing import Optional
+from enum import StrEnum
 
 logger = logging.getLogger(__name__)
 
 
-class NotificationLevel(str, Enum):
+class NotificationLevel(StrEnum):
     INFO = "info"
     WARNING = "warning"
     CRITICAL = "critical"
@@ -18,10 +17,11 @@ class NotificationLevel(str, Enum):
 @dataclass
 class Notification:
     """A notification to be sent."""
+
     title: str
     message: str
     level: NotificationLevel = NotificationLevel.INFO
-    metadata: Optional[dict] = None
+    metadata: dict | None = None
 
     def format_text(self) -> str:
         """Format notification as plain text."""
@@ -33,9 +33,7 @@ class Notification:
 
         text = f"{prefix} **{self.title}**\n\n{self.message}"
         if self.metadata:
-            text += "\n\n" + "\n".join(
-                f"• {k}: {v}" for k, v in self.metadata.items()
-            )
+            text += "\n\n" + "\n".join(f"• {k}: {v}" for k, v in self.metadata.items())
         return text
 
     def format_html(self) -> str:
@@ -48,9 +46,7 @@ class Notification:
 
         html = f"{emoji} <b>{self.title}</b>\n\n{self.message}"
         if self.metadata:
-            html += "\n\n" + "\n".join(
-                f"• <code>{k}</code>: {v}" for k, v in self.metadata.items()
-            )
+            html += "\n\n" + "\n".join(f"• <code>{k}</code>: {v}" for k, v in self.metadata.items())
         return html
 
 
@@ -90,22 +86,16 @@ class NotificationManager:
                         f"{provider.__class__.__name__}"
                     )
                 else:
-                    logger.warning(
-                        f"Failed to send notification to "
-                        f"{provider.__class__.__name__}"
-                    )
+                    logger.warning(f"Failed to send notification to {provider.__class__.__name__}")
             except Exception as e:
-                logger.error(
-                    f"Error sending notification to "
-                    f"{provider.__class__.__name__}: {e}"
-                )
+                logger.error(f"Error sending notification to {provider.__class__.__name__}: {e}")
 
     async def send_alert(
         self,
         title: str,
         message: str,
         level: NotificationLevel = NotificationLevel.INFO,
-        metadata: Optional[dict] = None,
+        metadata: dict | None = None,
     ):
         """Convenience method to send an alert."""
         notification = Notification(

@@ -7,15 +7,14 @@ for monitoring, debugging, and compliance.
 import json
 import logging
 import time
-from dataclasses import dataclass, field
-from enum import Enum
+from dataclasses import dataclass
+from enum import StrEnum
 from pathlib import Path
-from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
 
-class AuditEventType(str, Enum):
+class AuditEventType(StrEnum):
     # Agent lifecycle
     AGENT_STARTED = "agent_started"
     AGENT_STOPPED = "agent_stopped"
@@ -44,6 +43,7 @@ class AuditEventType(str, Enum):
 @dataclass
 class AuditEntry:
     """Single audit log entry."""
+
     event_type: AuditEventType
     timestamp: float
     source: str  # which strategy/module generated this
@@ -80,7 +80,7 @@ class AuditTrail:
         event_type: AuditEventType,
         source: str,
         data: dict,
-        correlation_id: Optional[str] = None,
+        correlation_id: str | None = None,
     ) -> AuditEntry:
         """Log an audit entry."""
         self._entry_counter += 1
@@ -127,8 +127,8 @@ class AuditTrail:
 
     def get_entries(
         self,
-        event_type: Optional[AuditEventType] = None,
-        source: Optional[str] = None,
+        event_type: AuditEventType | None = None,
+        source: str | None = None,
         limit: int = 100,
     ) -> list[AuditEntry]:
         """Query audit entries."""
@@ -145,19 +145,15 @@ class AuditTrail:
         """Get audit trail summary."""
         type_counts: dict[str, int] = {}
         for entry in self._entries:
-            type_counts[entry.event_type.value] = (
-                type_counts.get(entry.event_type.value, 0) + 1
-            )
+            type_counts[entry.event_type.value] = type_counts.get(entry.event_type.value, 0) + 1
 
         return {
             "total_entries": len(self._entries),
             "event_type_counts": type_counts,
-            "latest_entry": (
-                self._entries[-1].to_dict() if self._entries else None
-            ),
+            "latest_entry": (self._entries[-1].to_dict() if self._entries else None),
         }
 
-    def export_json(self, output_path: Optional[str] = None) -> str:
+    def export_json(self, output_path: str | None = None) -> str:
         """Export all entries as JSON."""
         data = {
             "total_entries": len(self._entries),

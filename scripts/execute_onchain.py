@@ -24,18 +24,15 @@ import asyncio
 import json
 import logging
 import sys
-import time
-from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from config.settings import Settings, get_settings
-from src.keeperhub.client import KeeperHubClient, ExecutionResult, ExecutionStatus
-from src.observability.audit import AuditTrail, AuditEventType
-from src.utils.helpers import now_iso, format_usd
+from src.keeperhub.client import ExecutionResult, KeeperHubClient
+from src.observability.audit import AuditEventType, AuditTrail
+from src.utils.helpers import now_iso
 
 logging.basicConfig(
     level=logging.INFO,
@@ -47,7 +44,7 @@ logger = logging.getLogger(__name__)
 class OnchainExecutor:
     """Handles real onchain execution via KeeperHub."""
 
-    def __init__(self, settings: Optional[Settings] = None):
+    def __init__(self, settings: Settings | None = None):
         self._settings = settings or get_settings()
         self._keeperhub = KeeperHubClient(self._settings)
         self._audit = AuditTrail()
@@ -116,7 +113,7 @@ class OnchainExecutor:
         self,
         to_address: str,
         amount: str,
-        token_address: Optional[str] = None,
+        token_address: str | None = None,
         simulate: bool = False,
     ) -> ExecutionResult:
         """Execute a token transfer via KeeperHub."""
@@ -145,8 +142,14 @@ class OnchainExecutor:
                 simulate=simulate,
             )
 
+            if not simulate and result.execution_id:
+                logger.info(f"Transfer broadcast, polling execution {result.execution_id}...")
+                result = await self._keeperhub.wait_for_execution(result.execution_id)
+
             self._audit.log(
-                AuditEventType.TRANSACTION_CONFIRMED if result.is_success else AuditEventType.TRANSACTION_FAILED,
+                AuditEventType.TRANSACTION_CONFIRMED
+                if result.is_success
+                else AuditEventType.TRANSACTION_FAILED,
                 "onchain_executor",
                 {
                     "execution_id": result.execution_id,
@@ -201,8 +204,14 @@ class OnchainExecutor:
                 simulate=simulate,
             )
 
+            if not simulate and result.execution_id:
+                logger.info(f"Contract call broadcast, polling execution {result.execution_id}...")
+                result = await self._keeperhub.wait_for_execution(result.execution_id)
+
             self._audit.log(
-                AuditEventType.TRANSACTION_CONFIRMED if result.is_success else AuditEventType.TRANSACTION_FAILED,
+                AuditEventType.TRANSACTION_CONFIRMED
+                if result.is_success
+                else AuditEventType.TRANSACTION_FAILED,
                 "onchain_executor",
                 {
                     "execution_id": result.execution_id,
@@ -255,8 +264,16 @@ class OnchainExecutor:
                 simulate=simulate,
             )
 
+            if not simulate and result.execution_id:
+                logger.info(
+                    f"Protocol action broadcast, polling execution {result.execution_id}..."
+                )
+                result = await self._keeperhub.wait_for_execution(result.execution_id)
+
             self._audit.log(
-                AuditEventType.TRANSACTION_CONFIRMED if result.is_success else AuditEventType.TRANSACTION_FAILED,
+                AuditEventType.TRANSACTION_CONFIRMED
+                if result.is_success
+                else AuditEventType.TRANSACTION_FAILED,
                 "onchain_executor",
                 {
                     "execution_id": result.execution_id,
@@ -281,7 +298,7 @@ class OnchainExecutor:
     async def execute_workflow(
         self,
         workflow_id: str,
-        inputs: Optional[dict] = None,
+        inputs: dict | None = None,
     ) -> ExecutionResult:
         """Execute a KeeperHub workflow."""
         logger.info(f"Executing workflow: {workflow_id}")
@@ -291,6 +308,10 @@ class OnchainExecutor:
                 workflow_id=workflow_id,
                 inputs=inputs,
             )
+
+            if result.execution_id:
+                logger.info(f"Workflow broadcast, polling execution {result.execution_id}...")
+                result = await self._keeperhub.wait_for_execution(result.execution_id)
 
             self._results.append(result.to_dict())
             return result
@@ -312,6 +333,12 @@ class OnchainExecutor:
                 read_condition=read_condition,
                 execute_action=execute_action,
             )
+
+            if result.execution_id:
+                logger.info(
+                    f"Check-and-execute broadcast, polling execution {result.execution_id}..."
+                )
+                result = await self._keeperhub.wait_for_execution(result.execution_id)
 
             self._results.append(result.to_dict())
             return result
@@ -345,7 +372,9 @@ async def main():
     parser.add_argument("--execution-id", type=str, help="Check status of specific execution")
     parser.add_argument("--to", type=str, help="Recipient address for transfer")
     parser.add_argument("--amount", type=str, help="Amount to transfer (wei)")
-    parser.add_argument("--token", type=str, help="Token address (ERC20) or 'native' for native token")
+    parser.add_argument(
+        "--token", type=str, help="Token address (ERC20) or 'native' for native token"
+    )
     args = parser.parse_args()
 
     settings = get_settings()
@@ -440,7 +469,8 @@ async def main():
             print("\n[4/5] Executing real transfer...")
             try:
                 result = await executor.execute_transfer(
-                    to_address=settings.wallet_address or "0x0000000000000000000000000000000000000000",
+                    to_address=settings.wallet_address
+                    or "0x0000000000000000000000000000000000000000",
                     amount="1000000000000000",  # 0.001 ETH
                     simulate=False,
                 )

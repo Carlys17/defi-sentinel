@@ -2,8 +2,6 @@
 """Execute first real transaction via KeeperHub MCP - for hackathon submission."""
 
 import asyncio
-import json
-import os
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -27,13 +25,14 @@ async def main():
 
     # Use KeeperHub MCP client
     from src.keeperhub.client import KeeperHubClient
+
     client = KeeperHubClient(settings)
 
     initialized = await client.initialize()
     if initialized:
-        print(f"✅ Connected to KeeperHub MCP")
+        print("✅ Connected to KeeperHub MCP")
     else:
-        print(f"❌ Failed to connect to KeeperHub MCP")
+        print("❌ Failed to connect to KeeperHub MCP")
         return
     print()
 
@@ -68,8 +67,8 @@ async def main():
     print("-" * 50)
     print(f"  From: {settings.wallet_address}")
     print(f"  To:   {settings.wallet_address}")
-    print(f"  Amount: 0.0001 ETH (self-transfer for test)")
-    print(f"  Chain: Base Sepolia (84532)")
+    print("  Amount: 0.0001 ETH (self-transfer for test)")
+    print("  Chain: Base Sepolia (84532)")
     print()
 
     try:
@@ -78,7 +77,7 @@ async def main():
             amount="0.0001",
             simulate=False,
         )
-        print(f"✅ Transaction submitted!")
+        print("✅ Transaction submitted!")
         print(f"Status: {tx_result.status.value}")
 
         if tx_result.transaction_hash:
