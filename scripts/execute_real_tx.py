@@ -32,23 +32,20 @@ from config.settings import Settings, get_settings
 from src.keeperhub.client import KeeperHubClient, ExecutionResult, ExecutionStatus
 from src.observability.audit import AuditTrail, AuditEventType
 
-# Wallet integration ID from KeeperHub
-WALLET_ID = "q457sq2pyt2dc01g3i48j"
-WALLET_ADDRESS = "0x749B59edC27F53E74fF93A6ef32a57be6E5F05f3"
+# Wallet integration — loaded from settings at runtime
 
 
-async def check_wallet_balance(client: KeeperHubClient) -> dict:
+async def check_wallet_balance(client: KeeperHubClient, settings: Settings) -> dict:
     """Check wallet balance by attempting a simulation."""
     print("\nChecking wallet balance...")
     try:
         result = await client._execute_tool("execute_transfer", {
             "chain_id": "84532",
-            "to_address": WALLET_ADDRESS,
+            "to_address": settings.wallet_address,
             "amount": "1",  # Minimal amount to check balance
             "simulate": True,
-            "integrationId": WALLET_ID,
         })
-        
+
         text = result.get("content", [{}])[0].get("text", "")
         print(f"Balance check result: {text[:500]}")
         return result
@@ -59,6 +56,7 @@ async def check_wallet_balance(client: KeeperHubClient) -> dict:
 
 async def execute_transfer(
     client: KeeperHubClient,
+    settings: Settings,
     to_address: str,
     amount: str,
     simulate: bool = False,
@@ -68,12 +66,11 @@ async def execute_transfer(
         "chain_id": "84532",  # Base Sepolia
         "to_address": to_address,
         "amount": amount,
-        "integrationId": WALLET_ID,
     }
 
     print(f"\nExecuting transfer: {amount} wei to {to_address}")
     print(f"  Chain: Base Sepolia (84532)")
-    print(f"  From: {WALLET_ADDRESS}")
+    print(f"  From: {settings.wallet_address}")
     print(f"  Simulate: {simulate}")
 
     try:
@@ -136,13 +133,14 @@ async def execute_real_transaction(simulate: bool = False) -> dict:
 
     # Step 2: Check wallet balance
     print("\n[2/5] Checking wallet balance...")
-    balance_result = await check_wallet_balance(client)
+    balance_result = await check_wallet_balance(client, settings)
 
     # Step 3: Simulate transfer
     print("\n[3/5] Simulating transfer...")
     sim_result = await execute_transfer(
         client,
-        to_address=WALLET_ADDRESS,  # Transfer to self for testing
+        settings,
+        to_address=settings.wallet_address,  # Transfer to self for testing
         amount="1000000000000000",  # 0.001 ETH in wei
         simulate=True,
     )
@@ -152,7 +150,7 @@ async def execute_real_transaction(simulate: bool = False) -> dict:
         print("  Please fund your wallet with testnet BASE tokens:")
         print("  → https://www.base.org/sepolia-faucet")
         print("  → Or use Chainlink Faucet: https://faucets.chain.link/base-sepolia")
-        return {"error": "Insufficient balance", "wallet_address": WALLET_ADDRESS}
+        return {"error": "Insufficient balance", "wallet_address": settings.wallet_address}
 
     # Step 4: Execute real transfer (if not simulating)
     if simulate:
@@ -164,7 +162,8 @@ async def execute_real_transaction(simulate: bool = False) -> dict:
 
     result = await execute_transfer(
         client,
-        to_address=WALLET_ADDRESS,  # Transfer to self
+        settings,
+        to_address=settings.wallet_address,  # Transfer to self
         amount="1000000000000000",  # 0.001 ETH
         simulate=False,
     )
@@ -196,7 +195,7 @@ async def execute_real_transaction(simulate: bool = False) -> dict:
             "status": result.status.value,
             "transaction_hash": result.transaction_hash,
             "chain": result.chain,
-            "to_address": WALLET_ADDRESS,
+            "to_address": settings.wallet_address,
             "amount": "1000000000000000",
         },
     )

@@ -264,7 +264,13 @@ defi-sentinel/
 │   ├── test_helpers.py
 │   └── test_keeperhub_client.py    # KeeperHub MCP client tests
 ├── scripts/
-│   └── run_demo.sh
+│   ├── execute_first_tx.py    # Execute first onchain transaction
+│   ├── execute_onchain.py     # Execute onchain operations
+│   ├── execute_real_tx.py     # Execute real onchain transaction
+│   ├── hackathon_demo.py      # Full hackathon demo
+│   ├── quick_start.py         # Quick start guide
+│   ├── run_demo.sh            # Demo runner script
+│   └── test_mcp.py            # MCP connection test
 ├── .github/
 │   └── workflows/
 │       └── ci.yml                 # CI: ruff, mypy, pytest
@@ -274,7 +280,6 @@ defi-sentinel/
 ├── Dockerfile
 ├── docker-compose.yml
 ├── pyproject.toml
-├── requirements.txt
 └── README.md
 ```
 

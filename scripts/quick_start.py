@@ -86,7 +86,7 @@ async def execute_first_transaction(settings: Settings, simulate: bool = False) 
     print("\n[5/6] Simulating transfer...")
     try:
         sim_result = await client.execute_transfer(
-            to_address="0x0000000000000000000000000000000000000000",
+            to_address=settings.wallet_address,
             amount="0.001",  # 0.001 BASE
             simulate=True,
         )
@@ -106,7 +106,7 @@ async def execute_first_transaction(settings: Settings, simulate: bool = False) 
 
     try:
         result = await client.execute_transfer(
-            to_address="0x0000000000000000000000000000000000000000",
+            to_address=settings.wallet_address,
             amount="0.001",  # 0.001 BASE
             simulate=False,
         )

@@ -32,9 +32,8 @@ from config.settings import Settings, get_settings
 from src.keeperhub.client import KeeperHubClient, ExecutionResult, ExecutionStatus
 from src.observability.audit import AuditTrail, AuditEventType
 
-# Wallet integration
-WALLET_ID = "q457sq2pyt2dc01g3i48j"
-WALLET_ADDRESS = "0x749B59edC27F53E74fF93A6ef32a57be6E5F05f3"
+# Wallet integration — loaded from settings
+WALLET_ID = None  # Determined at runtime from KeeperHub integrations
 
 # Colors
 GREEN = "\033[92m"
@@ -116,9 +115,8 @@ async def run_demo(simulate_only: bool = False) -> dict:
     try:
         integrations = await client.list_integrations()
         print_success(f"Found {len(integrations)} integration(s)")
-        print(f"  Wallet: {WALLET_ADDRESS}")
+        print(f"  Wallet: {settings.wallet_address}")
         print(f"  Type: Web3 (EVM)")
-        print(f"  Integration ID: {WALLET_ID}")
         results["step2"] = "success"
     except Exception as e:
         print_error(f"Integration check failed: {e}")
@@ -146,18 +144,17 @@ async def run_demo(simulate_only: bool = False) -> dict:
     print_header("STEP 4: Simulate Transfer (Safety Check)")
 
     print_info("Running simulation before execution...")
-    print(f"  From: {WALLET_ADDRESS}")
-    print(f"  To:   {WALLET_ADDRESS}")
+    print(f"  From: {settings.wallet_address}")
+    print(f"  To:   {settings.wallet_address}")
     print(f"  Amount: 0.001 BASE")
     print(f"  Chain: Base Sepolia (84532)")
 
     try:
         sim_result = await client._execute_tool("execute_transfer", {
             "chain_id": "84532",
-            "to_address": WALLET_ADDRESS,
+            "to_address": settings.wallet_address,
             "amount": "0.001",
             "simulate": True,
-            "integrationId": WALLET_ID,
         })
 
         text = sim_result.get("content", [{}])[0].get("text", "")
@@ -191,9 +188,8 @@ async def run_demo(simulate_only: bool = False) -> dict:
         try:
             tx_result = await client._execute_tool("execute_transfer", {
                 "chain_id": "84532",
-                "to_address": WALLET_ADDRESS,
+                "to_address": settings.wallet_address,
                 "amount": "0.001",
-                "integrationId": WALLET_ID,
                 "idempotency_key": f"defi-sentinel-demo-{int(time.time())}",
             })
 
