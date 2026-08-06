@@ -408,10 +408,60 @@ Response format: Always return valid JSON with the following structure:
 
     async def _fetch_portfolio_state(self) -> PortfolioState:
         """Fetch current portfolio state from KeeperHub and onchain."""
-        # This would query KeeperHub for wallet state, positions, etc.
-        # For now, return a placeholder
         from src.utils.helpers import now_ts
-        return PortfolioState(timestamp=now_ts())
+
+        portfolio = PortfolioState(timestamp=now_ts())
+
+        if not self._keeperhub:
+            logger.warning("KeeperHub not configured - returning empty portfolio")
+            return portfolio
+
+        try:
+            # Fetch wallet integration for balance info
+            wallet_info = await self._keeperhub.get_wallet_integration()
+
+            # Search for lending protocol positions
+            lending_protocols = ["aave-v3", "compound", "morpho"]
+            for protocol in lending_protocols:
+                try:
+                    actions = await self._keeperhub.search_protocol_actions(protocol=protocol)
+                    # Parse positions from protocol actions
+                    for action in actions:
+                        if "supply" in str(action).lower() or "borrow" in str(action).lower():
+                            portfolio.positions.append({
+                                "token_address": action.get("token_address", ""),
+                                "protocol": protocol,
+                                "usd_value": float(action.get("usd_value", 0)),
+                                "amount": action.get("amount", "0"),
+                            })
+                except Exception as e:
+                    logger.debug(f"Failed to fetch {protocol} positions: {e}")
+
+            # Calculate total value
+            portfolio.total_value_usd = sum(
+                p.get("usd_value", 0) for p in portfolio.positions
+            )
+
+            # Fetch health factors from lending protocols
+            try:
+                aave_actions = await self._keeperhub.search_protocol_actions(protocol="aave-v3")
+                for action in aave_actions:
+                    if "health" in str(action).lower():
+                        protocol_name = action.get("protocol", "aave-v3")
+                        hf = float(action.get("health_factor", 1.0))
+                        portfolio.health_factors[protocol_name] = hf
+            except Exception as e:
+                logger.debug(f"Failed to fetch health factors: {e}")
+
+            logger.info(
+                f"Portfolio state: ${portfolio.total_value_usd:,.2f}, "
+                f"{len(portfolio.positions)} positions"
+            )
+
+        except Exception as e:
+            logger.error(f"Failed to fetch portfolio state: {e}")
+
+        return portfolio
 
     async def stop(self):
         """Stop the agent gracefully."""

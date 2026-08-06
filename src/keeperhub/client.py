@@ -108,8 +108,9 @@ class KeeperHubClient:
 
     def _generate_idempotency_key(self, tool_name: str, params: dict) -> str:
         """Generate an idempotency key for retry-safe execution."""
-        payload = json.dumps({"tool": tool_name, "params": params}, sort_keys=True)
-        return hashlib.sha256(payload.encode()).hexdigest()[:16]
+        import uuid
+        payload = json.dumps({"tool": tool_name, "params": params, "uuid": str(uuid.uuid4())}, sort_keys=True)
+        return hashlib.sha256(payload.encode()).hexdigest()[:32]
 
     async def _execute_tool(
         self,
@@ -119,6 +120,8 @@ class KeeperHubClient:
         idempotency_key: Optional[str] = None,
     ) -> dict:
         """Execute an MCP tool via KeeperHub's HTTP endpoint.
+
+        Uses JSON-RPC 2.0 over streamable HTTP as per KeeperHub docs.
 
         Args:
             tool_name: MCP tool name (e.g. 'execute_transfer')
@@ -156,22 +159,43 @@ class KeeperHubClient:
                 response.raise_for_status()
                 result = response.json()
 
+                # Handle MCP error format
                 if "error" in result:
                     error_msg = result["error"].get("message", "Unknown MCP error")
                     logger.error(f"Tool '{tool_name}' failed: {error_msg}")
                     raise Exception(error_msg)
 
+                # Handle content format from MCP
+                content = result.get("content", [])
+                if content and isinstance(content, list):
+                    for item in content:
+                        if item.get("type") == "text":
+                            try:
+                                return json.loads(item["text"])
+                            except json.JSONDecodeError:
+                                return {"text": item["text"]}
+
                 return result.get("result", {})
 
             except httpx.HTTPStatusError as e:
-                if e.response.status_code == 429:
+                status = e.response.status_code
+                if status == 429:
                     wait_time = self._retry_delay * (2 ** attempt)
                     logger.warning(f"Rate limited, waiting {wait_time}s...")
                     await asyncio.sleep(wait_time)
                     continue
-                elif e.response.status_code == 402:
-                    # Payment required - handled by agentic wallet
+                elif status == 402:
+                    # Payment required - x402/MPP challenge
                     logger.info("402 challenge received - agentic wallet will handle payment")
+                    # Try to parse the challenge
+                    try:
+                        challenge = e.response.json()
+                        logger.info(f"x402 challenge: {challenge}")
+                    except Exception:
+                        pass
+                    raise
+                elif status == 401:
+                    logger.error("Authentication failed - check your API key")
                     raise
                 elif attempt == self._retry_count:
                     raise
@@ -284,6 +308,15 @@ class KeeperHubClient:
         return result
 
     # ---- Direct Onchain Execution ----
+
+    async def get_direct_execution_status(self, execution_id: str) -> dict:
+        """Get status of a direct execution (transfer or contract call).
+
+        Returns tx hash and result for polling until completion.
+        """
+        return await self._execute_tool("get_direct_execution_status", {
+            "execution_id": execution_id,
+        })
 
     async def execute_transfer(
         self,
@@ -462,6 +495,33 @@ class KeeperHubClient:
             gas_used=result.get("gas_used"),
             raw_response=result,
         )
+
+    async def list_chains(self) -> list[dict]:
+        """List supported blockchain networks."""
+        result = await self._execute_tool("list_chains", {})
+        return result.get("chains", [])
+
+    async def get_chain(self, chain_id: str) -> dict:
+        """Get details for a specific chain."""
+        return await self._execute_tool("get_chain", {"chain_id": chain_id})
+
+    async def list_action_schemas(self) -> list[dict]:
+        """List available action schemas, triggers, supported chains."""
+        return await self._execute_tool("list_action_schemas", {})
+
+    async def search_templates(self, query: str) -> list[dict]:
+        """Search pre-built workflow templates."""
+        result = await self._execute_tool("search_templates", {"query": query})
+        return result.get("templates", [])
+
+    async def deploy_template(self, template_id: str) -> str:
+        """Clone a public template into the org as a new workflow."""
+        result = await self._execute_tool("deploy_template", {"template_id": template_id})
+        return result.get("workflow_id", "")
+
+    async def tools_documentation(self) -> dict:
+        """Get documentation for all KeeperHub MCP tools with examples."""
+        return await self._execute_tool("tools_documentation", {})
 
     # ---- Marketplace ----
 

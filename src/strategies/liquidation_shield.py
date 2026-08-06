@@ -167,15 +167,57 @@ class LiquidationShield:
         if not self._keeperhub:
             return []
 
+        positions = []
         try:
             # Query Aave v3 positions
-            actions = await self._keeperhub.search_protocol_actions(protocol="aave-v3")
-            # Parse positions from protocol response
-            # This would be populated with real data from KeeperHub
-            return self._positions
+            aave_actions = await self._keeperhub.search_protocol_actions(protocol="aave-v3")
+            for action in aave_actions:
+                try:
+                    pos = LendingPosition(
+                        protocol="aave-v3",
+                        market=action.get("market", action.get("token", "USDC")),
+                        supplied_amount=float(action.get("supplied_amount", 0)),
+                        supplied_usd=float(action.get("supplied_usd", 0)),
+                        borrowed_amount=float(action.get("borrowed_amount", 0)),
+                        borrowed_usd=float(action.get("borrowed_usd", 0)),
+                        health_factor=float(action.get("health_factor", 2.0)),
+                        liquidation_threshold=float(action.get("liquidation_threshold", 0.8)),
+                        liquidation_bonus=float(action.get("liquidation_bonus", 0.05)),
+                        supply_apr=float(action.get("supply_apr", 0)),
+                        borrow_apr=float(action.get("borrow_apr", 0)),
+                    )
+                    positions.append(pos)
+                except (ValueError, TypeError):
+                    continue
+
+            # Also query Compound
+            compound_actions = await self._keeperhub.search_protocol_actions(protocol="compound")
+            for action in compound_actions:
+                try:
+                    pos = LendingPosition(
+                        protocol="compound",
+                        market=action.get("market", action.get("token", "USDC")),
+                        supplied_amount=float(action.get("supplied_amount", 0)),
+                        supplied_usd=float(action.get("supplied_usd", 0)),
+                        borrowed_amount=float(action.get("borrowed_amount", 0)),
+                        borrowed_usd=float(action.get("borrowed_usd", 0)),
+                        health_factor=float(action.get("health_factor", 2.0)),
+                        liquidation_threshold=float(action.get("liquidation_threshold", 0.8)),
+                        liquidation_bonus=float(action.get("liquidation_bonus", 0.05)),
+                        supply_apr=float(action.get("supply_apr", 0)),
+                        borrow_apr=float(action.get("borrow_apr", 0)),
+                    )
+                    positions.append(pos)
+                except (ValueError, TypeError):
+                    continue
+
+            self._positions = positions
+            logger.info(f"Fetched {len(positions)} lending positions")
+
         except Exception as e:
             logger.error(f"Failed to fetch positions: {e}")
-            return []
+
+        return self._positions
 
     def _calculate_collateral_needed(self, position: LendingPosition) -> float:
         """Calculate how much collateral is needed to reach target health factor."""

@@ -121,7 +121,7 @@ Most AI agents can reason about DeFi, but fail when it comes to **onchain execut
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-org/defi-sentinel.git
+git clone https://github.com/Carlys17/defi-sentinel.git
 cd defi-sentinel
 
 # Create virtual environment
@@ -164,6 +164,10 @@ defi-sentinel status
 # Run health checks
 defi-sentinel check
 
+# Execute your first onchain transaction
+python scripts/quick_start.py          # Real transaction
+python scripts/quick_start.py --simulate  # Simulation only
+
 # Start the agent
 defi-sentinel start
 
@@ -195,6 +199,7 @@ DeFi Sentinel uses KeeperHub as its **exclusive onchain execution layer**, lever
 | **Workflow Builder** | Visual automation for complex multi-step operations |
 | **Audit Trail** | Full execution logs with error context |
 | **CLI (`kh`)** | Programmatic resource management |
+| **x402/MPP** | Pay-per-execution over HTTP, settled onchain |
 
 ### Execution Flow
 
@@ -203,9 +208,33 @@ DeFi Sentinel uses KeeperHub as its **exclusive onchain execution layer**, lever
 2. Agent generates decision with LLM reasoning
 3. KeeperHub simulates transaction (gas estimate + revert check)
 4. If simulation passes, execute with idempotency key
-5. Monitor execution status and log to audit trail
-6. Notify via Telegram/Discord on completion
+5. Monitor execution status via get_direct_execution_status
+6. Log to audit trail and notify via Telegram/Discord
 ```
+
+### Onchain Execution Scripts
+
+```bash
+# Quick start - execute first transaction
+python scripts/quick_start.py
+
+# Full execution flow with all KeeperHub tools
+python scripts/execute_onchain.py
+
+# Simulation mode (no broadcast)
+python scripts/execute_onchain.py --simulate
+
+# Execute specific transfer
+python scripts/execute_onchain.py --transfer --to 0x... --amount "1000000000000000"
+
+# Check execution status
+python scripts/execute_onchain.py --status --execution-id <id>
+```
+
+### Transaction History
+All executed transactions are logged in:
+- `logs/execution_results.json` - Structured execution results
+- `logs/audit.jsonl` - Full audit trail with timestamps
 
 ---
 

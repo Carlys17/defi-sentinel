@@ -167,17 +167,23 @@ class YieldOptimizer:
             # Convert to opportunities
             opportunities = []
             for action in all_actions:
-                opportunities.append(YieldOpportunity(
-                    protocol=action.get("protocol", ""),
-                    market=action.get("market", ""),
-                    token=action.get("token", ""),
-                    apr=action.get("apr", 0.0),
-                    tvl_usd=action.get("tvl_usd", 0.0),
-                    risk_score=action.get("risk_score", 5.0),
-                    is_stablecoin=action.get("is_stablecoin", False),
-                ))
+                try:
+                    opp = YieldOpportunity(
+                        protocol=action.get("protocol", protocol),
+                        market=action.get("market", ""),
+                        token=action.get("token", action.get("asset", "USDC")),
+                        apr=float(action.get("apr", action.get("apy", 0.0))),
+                        tvl_usd=float(action.get("tvl_usd", 0.0)),
+                        risk_score=float(action.get("risk_score", 5.0)),
+                        is_stablecoin=action.get("is_stablecoin", False),
+                        lock_period_days=int(action.get("lock_period_days", 0)),
+                    )
+                    opportunities.append(opp)
+                except (ValueError, TypeError):
+                    continue
 
             self._opportunities = opportunities
+            logger.info(f"Fetched {len(opportunities)} yield opportunities")
             return opportunities
 
         except Exception as e:
