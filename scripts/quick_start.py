@@ -4,10 +4,11 @@ DeFi Sentinel — Quick Start: Execute First Onchain Transaction
 ===============================================================
 
 This script helps you execute your FIRST real onchain transaction via KeeperHub.
-Follow the steps to get a transaction hash for your hackathon submission.
 
 Usage:
-    python scripts/quick_start.py
+    python3 scripts/quick_start.py              # Full flow with real transaction
+    python3 scripts/quick_start.py --simulate   # Simulation only
+    python3 scripts/quick_start.py --status     # Check status
 """
 
 from __future__ import annotations
@@ -24,6 +25,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from config.settings import Settings, get_settings
 from src.keeperhub.client import KeeperHubClient, ExecutionResult, ExecutionStatus
+from src.observability.audit import AuditTrail, AuditEventType
 
 async def check_setup(settings: Settings) -> list[str]:
     """Check if environment is properly configured."""
@@ -32,29 +34,25 @@ async def check_setup(settings: Settings) -> list[str]:
     if not settings.keeperhub_api_key or settings.keeperhub_api_key == "kh-your-key-here":
         issues.append("❌ KEEPERHUB_API_KEY not set. Get one at https://app.keeperhub.com")
 
-    if not settings.wallet_address or settings.wallet_address == "0x0000000000000000000000000000000000000000":
-        issues.append("❌ WALLET_ADDRESS not set. Use your KeeperHub wallet address")
-
-    if settings.keeperhub_mcp_url != "https://app.keeperhub.com/mcp":
-        issues.append(f"⚠️  KeeperHub MCP URL is {settings.keeperhub_mcp_url}, expected https://app.keeperhub.com/mcp")
-
     return issues
 
 async def execute_first_transaction(settings: Settings, simulate: bool = False) -> dict:
     """Execute the first onchain transaction via KeeperHub."""
     client = KeeperHubClient(settings)
+    audit = AuditTrail()
 
     print("\n" + "=" * 70)
     print("  DeFi Sentinel — First Onchain Transaction")
     print("=" * 70)
 
-    # Step 1: Health check
-    print("\n[1/6] Checking KeeperHub connection...")
-    health = await client.health_check()
-    if health:
-        print("  ✅ KeeperHub MCP server is reachable")
+    # Step 1: Initialize MCP session
+    print("\n[1/6] Initializing KeeperHub MCP session...")
+    initialized = await client.initialize()
+    if initialized:
+        print("  ✅ MCP session initialized")
     else:
-        print("  ⚠️  Health check failed - will try direct execution")
+        print("  ❌ Failed to initialize MCP session")
+        return {"error": "MCP initialization failed"}
 
     # Step 2: List workflows
     print("\n[2/6] Listing available workflows...")
@@ -76,25 +74,25 @@ async def execute_first_transaction(settings: Settings, simulate: bool = False) 
     except Exception as e:
         print(f"  ⚠️  Could not list integrations: {e}")
 
-    # Step 4: Get wallet info
-    print("\n[4/6] Getting wallet integration...")
+    # Step 4: List action schemas
+    print("\n[4/6] Listing action schemas...")
     try:
-        wallet = await client.get_wallet_integration()
-        print(f"  ✅ Wallet: {wallet}")
+        schemas = await client.list_action_schemas()
+        print(f"  ✅ Found action schemas")
     except Exception as e:
-        print(f"  ⚠️  Could not get wallet info: {e}")
+        print(f"  ⚠️  Could not list action schemas: {e}")
 
     # Step 5: Simulate transfer
     print("\n[5/6] Simulating transfer...")
     try:
         sim_result = await client.execute_transfer(
-            to_address=settings.wallet_address,
+            to_address="0x0000000000000000000000000000000000000000",
             amount="1000000000000000",  # 0.001 ETH in wei
             simulate=True,
         )
-        print(f"  ✅ Simulation: {sim_result.status.value}")
-        if sim_result.gas_used:
-            print(f"     Gas estimate: {sim_result.gas_used}")
+        print(f"  ✅ Simulation result: {sim_result.status.value}")
+        if sim_result.error:
+            print(f"     Error: {sim_result.error}")
     except Exception as e:
         print(f"  ⚠️  Simulation failed: {e}")
 
@@ -108,7 +106,7 @@ async def execute_first_transaction(settings: Settings, simulate: bool = False) 
 
     try:
         result = await client.execute_transfer(
-            to_address=settings.wallet_address,
+            to_address="0x0000000000000000000000000000000000000000",
             amount="1000000000000000",  # 0.001 ETH
             simulate=False,
         )
@@ -130,6 +128,18 @@ async def execute_first_transaction(settings: Settings, simulate: bool = False) 
         if result.gas_used:
             print(f"  Gas Used: {result.gas_used}")
 
+        # Log to audit trail
+        audit.log(
+            AuditEventType.TRANSACTION_SENT,
+            "quick_start",
+            {
+                "execution_id": result.execution_id,
+                "status": result.status.value,
+                "transaction_hash": result.transaction_hash,
+                "chain": result.chain,
+            },
+        )
+
         return result.to_dict()
 
     except Exception as e:
@@ -144,7 +154,8 @@ async def execute_first_transaction(settings: Settings, simulate: bool = False) 
 
 async def main():
     parser = argparse.ArgumentParser(description="DeFi Sentinel - Quick Start")
-    parser.add_argument("--simulate", action="store_true", help="Simulation only (no real transaction)")
+    parser.add_argument("--simulate", action="store_true", help="Simulation only")
+    parser.add_argument("--status", action="store_true", help="Check execution status")
     args = parser.parse_args()
 
     settings = get_settings()
@@ -158,7 +169,6 @@ async def main():
         for issue in issues:
             print(f"  {issue}")
         print("\nPlease fix these issues and try again.")
-        print("Edit .env file with your actual API keys and wallet address.")
         sys.exit(1)
 
     print("✅ Setup looks good!")
@@ -167,10 +177,10 @@ async def main():
     result = await execute_first_transaction(settings, simulate=args.simulate)
 
     # Save result
-    if result and "error" not in result:
+    if result:
         results_file = Path("logs/first_transaction.json")
         results_file.parent.mkdir(parents=True, exist_ok=True)
-        results_file.write_text(json.dumps(result, indent=2))
+        results_file.write_text(json.dumps(result, indent=2, default=str))
         print(f"\nResult saved to {results_file}")
 
     print("\n" + "=" * 70)
