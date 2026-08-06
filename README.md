@@ -5,7 +5,6 @@
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/)
 [![KeeperHub](https://img.shields.io/badge/KeeperHub-Powered-orange.svg)](https://keeperhub.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![DoraHacks](https://img.shields.io/badge/DoraHacks-Agents%20Onchain-red.svg)](https://dorahacks.io/hackathon/agents-onchain)
 [![CI](https://github.com/Carlys17/defi-sentinel/actions/workflows/ci.yml/badge.svg)](https://github.com/Carlys17/defi-sentinel/actions/workflows/ci.yml)
 
 ---
@@ -29,49 +28,49 @@ Most AI agents can reason about DeFi, but fail when it comes to **onchain execut
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                    DeFi Sentinel Agent                       │
-├─────────────────────────────────────────────────────────────┤
-│                                                              │
-│  ┌──────────────┐    ┌──────────────────────────────────┐   │
-│  │   LLM Engine  │    │        Strategy Engine           │   │
-│  │              │    │                                  │   │
-│  │  • OpenAI    │    │  ┌────────────────────────────┐  │   │
-│  │  • Anthropic │───▶│  │  Liquidation Shield        │  │   │
-│  │  • Structured│    │  │  - Health factor monitoring │  │   │
-│  │    JSON      │    │  │  - Auto collateral/repay    │  │   │
-│  └──────────────┘    │  └────────────────────────────┘  │   │
-│                      │  ┌────────────────────────────┐  │   │
-│                      │  │  Yield Optimizer           │  │   │
-│                      │  │  - Cross-protocol APR scan  │  │   │
-│                      │  │  - Risk-adjusted returns    │  │   │
-│                      │  └────────────────────────────┘  │   │
-│                      │  ┌────────────────────────────┐  │   │
-│                      │  │  Portfolio Rebalancer       │  │   │
-│                      │  │  - Target allocation        │  │   │
-│                      │  │  - Auto rebalance           │  │   │
-│                      │  └────────────────────────────┘  │   │
-│                      └──────────────────────────────────┘   │
-│                                                              │
-│  ┌──────────────────────────────────────────────────────┐   │
-│  │              KeeperHub MCP Client                     │   │
-│  │  • Workflow execution  • DeFi protocol actions       │   │
-│  │  • Direct transfers    • Contract calls              │   │
-│  │  • Simulation mode     • Idempotency keys            │   │
-│  └──────────────────────────────────────────────────────┘   │
-│                                                              │
-│  ┌──────────────────────────────────────────────────────┐   │
-│  │              Observability Layer                      │   │
-│  │  • Audit trail (JSONL)  • Prometheus metrics         │   │
-│  │  • Structured logging   • Health checks              │   │
-│  └──────────────────────────────────────────────────────┘   │
-│                                                              │
-│  ┌──────────────────────────────────────────────────────┐   │
-│  │              Notification Layer                       │   │
-│  │  • Telegram  • Discord  • Logger                     │   │
-│  └──────────────────────────────────────────────────────┘   │
-│                                                              │
-└─────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────┐
+│                    DeFi Sentinel Agent                           │
+├──────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  ┌─────────────────┐    ┌──────────────────────────────────────┐ │
+│  │   LLM Engine    │    │        Strategy Engine               │ │
+│  │                 │    │                                      │ │
+│  │  • OpenAI       │    │  ┌────────────────────────────────┐  │ │
+│  │  • Anthropic    │───▶│  │  Liquidation Shield            │  │ │
+│  │  • Structured   │    │  │  - Health factor monitoring    │  │ │
+│  │    JSON         │    │  │  - Auto collateral/repay       │  │ │
+│  └─────────────────┘    │  └────────────────────────────────┘  │ │
+│                         │  ┌────────────────────────────────┐  │ │
+│                         │  │  Yield Optimizer               │  │ │
+│                         │  │  - Cross-protocol APR scan     │  │ │
+│                         │  │  - Risk-adjusted returns       │  │ │
+│                         │  └────────────────────────────────┘  │ │
+│                         │  ┌────────────────────────────────┐  │ │
+│                         │  │  Portfolio Rebalancer          │  │ │
+│                         │  │  - Target allocation           │  │ │
+│                         │  │  - Auto rebalance              │  │ │
+│                         │  └────────────────────────────────┘  │ │
+│                         └──────────────────────────────────────┘ │
+│                                                                  │
+│  ┌──────────────────────────────────────────────────────────────┐ │
+│  │              KeeperHub MCP Client                            │ │
+│  │  • Workflow execution  • DeFi protocol actions              │ │
+│  │  • Direct transfers    • Contract calls                     │ │
+│  │  • Simulation mode     • Idempotency keys                   │ │
+│  └──────────────────────────────────────────────────────────────┘ │
+│                                                                  │
+│  ┌──────────────────────────────────────────────────────────────┐ │
+│  │              Observability Layer                             │ │
+│  │  • Audit trail (JSONL)  • Prometheus metrics                │ │
+│  │  • Structured logging   • Health checks                     │ │
+│  └──────────────────────────────────────────────────────────────┘ │
+│                                                                  │
+│  ┌──────────────────────────────────────────────────────────────┐ │
+│  │              Notification Layer                              │ │
+│  │  • Telegram  • Discord  • Logger                            │ │
+│  └──────────────────────────────────────────────────────────────┘ │
+│                                                                  │
+└──────────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -109,7 +108,7 @@ DeFi Sentinel has been tested with real onchain transactions via KeeperHub:
 - Configurable deviation threshold
 - Smart rebalancing that considers gas costs vs. rebalance benefit
 
-### 🔐 Safety & Reliability
+### 🔒 Safety & Reliability
 - **Simulation-first**: Every transaction is simulated before execution
 - **Idempotency keys**: Retry-safe execution without double-spending
 - **Approval thresholds**: Auto-approve small transactions, require approval for large ones
@@ -267,7 +266,6 @@ defi-sentinel/
 │   ├── execute_first_tx.py    # Execute first onchain transaction
 │   ├── execute_onchain.py     # Execute onchain operations
 │   ├── execute_real_tx.py     # Execute real onchain transaction
-│   ├── hackathon_demo.py      # Full hackathon demo
 │   ├── quick_start.py         # Quick start guide
 │   ├── run_demo.sh            # Demo runner script
 │   └── test_mcp.py            # MCP connection test
@@ -298,19 +296,6 @@ defi-sentinel/
 - Arbitrum (Mainnet + Sepolia)
 - Polygon (Mainnet + Mumbai)
 - Ethereum Mainnet
-
----
-
-## Judging Criteria Alignment
-
-| Criteria | How DeFi Sentinel Delivers |
-|---|---|
-| **Execution** | Real onchain transactions via KeeperHub — no mockups |
-| **KeeperHub Surfaces** | MCP server, DeFi plugins, agentic wallet, workflow builder, audit trail, CLI |
-| **Reliability** | Simulation-first, idempotency keys, exponential backoff, retry logic, circuit breakers |
-| **Observability** | Full audit trail, Prometheus metrics, structured logging, notification alerts |
-| **Originality** | Production-grade autonomous agent solving real DeFi problems |
-| **Integration Quality** | Clean architecture, type-safe Pydantic config, CLI, Docker, tests |
 
 ---
 
@@ -355,9 +340,5 @@ pre-commit install
 MIT License — see [LICENSE](LICENSE) for details.
 
 ---
-
-## Acknowledgments
-
-Built for the **KeeperHub — Agents Onchain Hackathon** on [DoraHacks](https://dorahacks.io/hackathon/agents-onchain).
 
 Powered by [KeeperHub](https://keeperhub.com/) — the execution and reliability layer for AI agents operating onchain.
