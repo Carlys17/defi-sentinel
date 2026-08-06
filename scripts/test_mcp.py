@@ -4,56 +4,71 @@
 import asyncio
 import json
 import os
+import sys
+from pathlib import Path
 
-from mcp import Client
-from mcp.client.streamable_http import streamable_http_client, create_mcp_http_client
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
-API_KEY = os.getenv("KEEPERHUB_API_KEY", "kh_aurRuIlaDrcAFoAujgkh3v5cz7UgrkwQ")
+from config.settings import get_settings
+
 MCP_URL = "https://app.keeperhub.com/mcp"
 
 
 async def main():
+    settings = get_settings()
+
     print(f"Connecting to {MCP_URL}...")
-    print(f"API Key: {API_KEY[:12]}...")
+    print(f"API Key: {settings.keeperhub_api_key[:12]}...")
     print()
 
-    http_client = create_mcp_http_client(
-        headers={"Authorization": f"Bearer {API_KEY}"}
-    )
+    # Use KeeperHub MCP client
+    from src.keeperhub.client import KeeperHubClient
+    client = KeeperHubClient(settings)
 
-    async with Client(
-        streamable_http_client(MCP_URL, http_client=http_client),
-    ) as client:
-        # List available tools
-        result = await client.list_tools()
-        tools = result.tools
+    initialized = await client.initialize()
+    if not initialized:
+        print("❌ Failed to initialize MCP session")
+        return
 
-        # Get server info from client
-        si = client.server_info
-        print(f"✅ Connected! Server: {si.name} v{si.version}")
-        print(f"🔧 Available tools: {len(tools)}")
-        print("=" * 70)
+    print(f"✅ Connected to KeeperHub MCP")
+    print()
 
-        for i, tool in enumerate(tools, 1):
-            print(f"\n{i}. {tool.name}")
-            print(f"   Description: {tool.description[:150]}")
-            # Show first few input schema properties
-            if hasattr(tool, "inputSchema") and tool.inputSchema:
-                props = tool.inputSchema.get("properties", {})
-                required = tool.inputSchema.get("required", [])
-                if props:
-                    print(f"   Parameters ({len(props)}):")
-                    for pname, pdesc in list(props.items())[:5]:
-                        req = " *" if pname in required else ""
-                        pinfo = pdesc if isinstance(pdesc, dict) else {}
-                        ptype = pinfo.get("type", "any")
-                        print(f"     - {pname}{req}: {ptype}")
-                    if len(props) > 5:
-                        print(f"     ... and {len(props) - 5} more")
+    # List available workflows
+    print("📋 Listing available workflows...")
+    try:
+        workflows = await client.list_workflows()
+        print(f"Found {len(workflows)} workflow(s)")
+        for wf in workflows[:5]:
+            print(f"  - {wf.name}: {wf.description[:100]}")
+    except Exception as e:
+        print(f"Error listing workflows: {e}")
+    print()
 
-        print("\n" + "=" * 70)
-        print("\n✅ MCP connection successful!")
-        print(f"\nNext step: Pick a tool to call. Try 'execute_transaction' or similar.")
+    # List integrations
+    print("📋 Listing integrations...")
+    try:
+        integrations = await client.list_integrations()
+        print(f"Found {len(integrations)} integration(s)")
+        for integration in integrations:
+            print(f"  - {integration}")
+    except Exception as e:
+        print(f"Error listing integrations: {e}")
+    print()
+
+    # List action schemas
+    print("📋 Listing action schemas...")
+    try:
+        schemas = await client.list_action_schemas()
+        print(f"Action schemas loaded successfully")
+    except Exception as e:
+        print(f"Error listing action schemas: {e}")
+    print()
+
+    print("=" * 70)
+    print("\n✅ MCP connection successful!")
+    print(f"\nNext step: Use the KeeperHub client to execute transactions.")
+
+    await client.close()
 
 
 if __name__ == "__main__":
