@@ -195,6 +195,7 @@ Response format: Always return valid JSON with the following structure:
         self._is_running = False
         self._decision_history: list[dict] = []
         self._max_decision_history = 100
+        self._last_workflow_id: Optional[str] = None
 
     @property
     def state(self) -> AgentState:
@@ -336,20 +337,67 @@ Response format: Always return valid JSON with the following structure:
         decisions.sort(key=lambda d: d.priority)
         return decisions
 
+    async def execute_via_workflow(self, decision: AgentDecision) -> dict:
+        """Execute a decision by generating and running a KeeperHub workflow.
+
+        Uses the LLM to create a structured workflow from the decision's
+        action/reason, then executes it via KeeperHub's workflow engine.
+        """
+        if not self._keeperhub:
+            return {"error": "KeeperHub not configured", "decision": decision.to_dict()}
+
+        logger.info(f"Generating workflow for decision: {decision.action}")
+
+        # Generate workflow from the decision's reason and action
+        workflow_prompt = (
+            f"Action: {decision.action}\n"
+            f"Reason: {decision.reason}\n"
+            f"Strategy: {decision.strategy}\n"
+            f"Parameters: {json.dumps(decision.parameters, default=str)}"
+        )
+        workflow = await self._keeperhub.ai_generate_workflow(workflow_prompt)
+
+        # Execute the generated workflow
+        execution_result = await self._keeperhub.execute_workflow(workflow)
+        self._last_workflow_id = execution_result.get("workflow_id") or str(execution_result.get("id", ""))
+
+        return execution_result
+
     async def execute_decision(self, decision: AgentDecision) -> dict:
-        """Execute a single decision through KeeperHub."""
+        """Execute a single decision through KeeperHub.
+
+        Tries workflow-based execution first (more reliable), then falls back
+        to direct strategy execution if the workflow path fails.
+        """
         if not self._keeperhub:
             return {"error": "KeeperHub not configured", "decision": decision.to_dict()}
 
         self._state = AgentState.EXECUTING
         logger.info(f"Executing decision: {decision.action}")
 
+        # Attempt workflow-based execution first
         try:
-            result = await self._strategies.get(decision.strategy).execute(decision)
+            logger.info("Attempting workflow-based execution")
+            result = await self.execute_via_workflow(decision)
+            logger.info(f"Workflow execution succeeded (workflow_id: {self._last_workflow_id})")
             return {
                 "success": True,
                 "decision": decision.to_dict(),
                 "result": result,
+                "execution_path": "workflow",
+            }
+        except Exception as e:
+            logger.warning(f"Workflow execution failed ({e}), falling back to direct strategy execution")
+
+        # Fallback to direct strategy execution
+        try:
+            result = await self._strategies.get(decision.strategy).execute(decision)
+            logger.info("Direct strategy execution succeeded")
+            return {
+                "success": True,
+                "decision": decision.to_dict(),
+                "result": result,
+                "execution_path": "direct",
             }
         except Exception as e:
             logger.error(f"Decision execution failed: {e}")
@@ -357,6 +405,7 @@ Response format: Always return valid JSON with the following structure:
                 "success": False,
                 "decision": decision.to_dict(),
                 "error": str(e),
+                "execution_path": "direct",
             }
         finally:
             self._state = AgentState.IDLE
@@ -484,4 +533,6 @@ Response format: Always return valid JSON with the following structure:
             "decision_count": len(self._decision_history),
             "keeperhub_configured": bool(self._keeperhub),
             "llm_configured": bool(self._llm),
+            "workflow_enabled": bool(self._keeperhub),
+            "last_workflow_id": self._last_workflow_id or "",
         }
