@@ -236,6 +236,15 @@ All executed transactions are logged in:
 - `logs/execution_results.json` - Structured execution results
 - `logs/audit.jsonl` - Full audit trail with timestamps
 
+### ✅ Verified Onchain Transaction
+
+> **Transaction Hash:** [`0xc244ad7e2ea2235161f51813524c330f53ad8214f9ba69c698cda127483ff429`](https://sepolia.basescan.org/tx/0xc244ad7e2ea2235161f51813524c330f53ad8214f9ba69c698cda127483ff429)
+>
+> **Chain:** Base Sepolia (84532)
+> **Amount:** 0.001 BASE
+> **Status:** ✅ Completed
+> **Executed via:** KeeperHub MCP Server
+
 ---
 
 ## Project Structure

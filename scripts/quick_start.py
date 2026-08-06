@@ -87,7 +87,7 @@ async def execute_first_transaction(settings: Settings, simulate: bool = False) 
     try:
         sim_result = await client.execute_transfer(
             to_address="0x0000000000000000000000000000000000000000",
-            amount="1000000000000000",  # 0.001 ETH in wei
+            amount="0.001",  # 0.001 BASE
             simulate=True,
         )
         print(f"  ✅ Simulation result: {sim_result.status.value}")
@@ -107,7 +107,7 @@ async def execute_first_transaction(settings: Settings, simulate: bool = False) 
     try:
         result = await client.execute_transfer(
             to_address="0x0000000000000000000000000000000000000000",
-            amount="1000000000000000",  # 0.001 ETH
+            amount="0.001",  # 0.001 BASE
             simulate=False,
         )
 
