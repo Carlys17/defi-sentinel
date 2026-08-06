@@ -6,6 +6,7 @@
 [![KeeperHub](https://img.shields.io/badge/KeeperHub-Powered-orange.svg)](https://keeperhub.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![DoraHacks](https://img.shields.io/badge/DoraHacks-Agents%20Onchain-red.svg)](https://dorahacks.io/hackathon/agents-onchain)
+[![CI](https://github.com/Carlys17/defi-sentinel/actions/workflows/ci.yml/badge.svg)](https://github.com/Carlys17/defi-sentinel/actions/workflows/ci.yml)
 
 ---
 
@@ -72,6 +73,20 @@ Most AI agents can reason about DeFi, but fail when it comes to **onchain execut
 │                                                              │
 └─────────────────────────────────────────────────────────────┘
 ```
+
+---
+
+## ✅ Verified Onchain Execution
+
+DeFi Sentinel has been tested with real onchain transactions via KeeperHub:
+
+| # | Transaction | Chain | Amount | Status |
+|---|---|---|---|---|
+| 1 | [`0x164acc…5e623`](https://sepolia.etherscan.io/tx/0x164acc244ac007de47056c522b8f3da79e34eb39bbde13bf6adb97f89c85e623) | Ethereum Sepolia | 0.0001 ETH | ✅ Completed (Block 11429034, Gas Sponsored) |
+| 2 | [`0xc244ad…ff429`](https://sepolia.basescan.org/tx/0xc244ad7e2ea2235161f51813524c330f53ad8214f9ba69c698cda127483ff429) | Base Sepolia | 0.001 BASE | ✅ Completed |
+| 3 | [`0x9a9668…ba97`](https://sepolia.basescan.org/tx/0x9a9668a32a18637c86d5484bcf57820fa282bed9f841337f5c0c3889d5c5ba97) | Base Sepolia | 0.001 BASE | ✅ Completed |
+
+**Wallet:** `0x749B59edC27F53E74fF93A6ef32a57be6E5F05f3` (KeeperHub Agentic Wallet)
 
 ---
 
@@ -164,10 +179,6 @@ defi-sentinel status
 # Run health checks
 defi-sentinel check
 
-# Execute your first onchain transaction
-python scripts/quick_start.py          # Real transaction
-python scripts/quick_start.py --simulate  # Simulation only
-
 # Start the agent
 defi-sentinel start
 
@@ -199,7 +210,6 @@ DeFi Sentinel uses KeeperHub as its **exclusive onchain execution layer**, lever
 | **Workflow Builder** | Visual automation for complex multi-step operations |
 | **Audit Trail** | Full execution logs with error context |
 | **CLI (`kh`)** | Programmatic resource management |
-| **x402/MPP** | Pay-per-execution over HTTP, settled onchain |
 
 ### Execution Flow
 
@@ -208,44 +218,9 @@ DeFi Sentinel uses KeeperHub as its **exclusive onchain execution layer**, lever
 2. Agent generates decision with LLM reasoning
 3. KeeperHub simulates transaction (gas estimate + revert check)
 4. If simulation passes, execute with idempotency key
-5. Monitor execution status via get_direct_execution_status
-6. Log to audit trail and notify via Telegram/Discord
+5. Monitor execution status and log to audit trail
+6. Notify via Telegram/Discord on completion
 ```
-
-### Onchain Execution Scripts
-
-```bash
-# Quick start - execute first transaction
-python scripts/quick_start.py
-
-# Full execution flow with all KeeperHub tools
-python scripts/execute_onchain.py
-
-# Simulation mode (no broadcast)
-python scripts/execute_onchain.py --simulate
-
-# Execute specific transfer
-python scripts/execute_onchain.py --transfer --to 0x... --amount "1000000000000000"
-
-# Check execution status
-python scripts/execute_onchain.py --status --execution-id <id>
-```
-
-### Transaction History
-All executed transactions are logged in:
-- `logs/execution_results.json` - Structured execution results
-- `logs/audit.jsonl` - Full audit trail with timestamps
-
-### ✅ Verified Onchain Transactions
-
-> **Transaction 1:** [`0xc244ad7e2ea2235161f51813524c330f53ad8214f9ba69c698cda127483ff429`](https://sepolia.basescan.org/tx/0xc244ad7e2ea2235161f51813524c330f53ad8214f9ba69c698cda127483ff429)
->
-> **Transaction 2:** [`0x9a9668a32a18637c86d5484bcf57820fa282bed9f841337f5c0c3889d5c5ba97`](https://sepolia.basescan.org/tx/0x9a9668a32a18637c86d5484bcf57820fa282bed9f841337f5c0c3889d5c5ba97)
->
-> **Chain:** Base Sepolia (84532)
-> **Amount:** 0.001 BASE each
-> **Status:** ✅ Both Completed
-> **Executed via:** KeeperHub MCP Server
 
 ---
 
@@ -286,9 +261,13 @@ defi-sentinel/
 ├── tests/
 │   ├── __init__.py
 │   ├── test_settings.py
-│   └── test_helpers.py
+│   ├── test_helpers.py
+│   └── test_keeperhub_client.py    # KeeperHub MCP client tests
 ├── scripts/
 │   └── run_demo.sh
+├── .github/
+│   └── workflows/
+│       └── ci.yml                 # CI: ruff, mypy, pytest
 ├── .env.example
 ├── .gitignore
 ├── .pre-commit-config.yaml
