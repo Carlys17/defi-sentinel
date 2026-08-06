@@ -14,6 +14,7 @@ class LLMProvider(str, Enum):
 
 
 class Chain(str, Enum):
+    ETHEREUM_SEPOLIA = "ethereum_sepolia"
     BASE_SEPOLIA = "base_sepolia"
     ARBITRUM_SEPOLIA = "arbitrum_sepolia"
     POLYGON_MUMBAI = "polygon_mumbai"

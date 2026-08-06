@@ -71,7 +71,7 @@ Every action is logged with complete context:
 |---|---|
 | **Trigger** | `liquidation_shield: health_factor < 1.2` |
 | **Simulation** | `gas_estimate: 185,000 \| revert: false` |
-| **Transaction** | `0x164acc244ac007de47056c522b8f3da79e34eb39bbde13bf6adb97f89c85e623` |
+| **Transaction** | `0x9c0274bbdbe13e59c79e86b9547b9a174925610030b331c67e1318829cfb7589` |
 | **Gas Used** | `142,380 / 185,000` |
 | **Outcome** | `success \| block: 11429034` |
 
@@ -140,7 +140,9 @@ DeFi Sentinel interacts with major DeFi protocols through KeeperHub's plugin sys
 
 ## Transaction Proof
 
-Verified onchain execution on Ethereum Sepolia:
+Two verified onchain transactions executed through KeeperHub:
+
+### Transaction #1 — Initial Verification (Ethereum Sepolia)
 
 **[`0x164acc244ac007de47056c522b8f3da79e34eb39bbde13bf6adb97f89c85e623`](https://sepolia.etherscan.io/tx/0x164acc244ac007de47056c522b8f3da79e34eb39bbde13bf6adb97f89c85e623)**
 
@@ -152,6 +154,21 @@ Verified onchain execution on Ethereum Sepolia:
 | **Block** | 11429034 |
 | **Gas** | Sponsored (KeeperHub) |
 | **Wallet** | `0x749B59edC27F53E74fF93A6ef32a57be6E5F05f3` (KeeperHub Agentic Wallet) |
+
+### Transaction #2 — Full Demo Execution (Base Sepolia)
+
+**[`0x9c0274bbdbe13e59c79e86b9547b9a174925610030b331c67e1318829cfb7589`](https://sepolia.basescan.org/tx/0x9c0274bbdbe13e59c79e86b9547b9a174925610030b331c67e1318829cfb7589)**
+
+| Detail | Value |
+|---|---|
+| **Chain** | Base Sepolia |
+| **Amount** | 0.001 BASE |
+| **Status** | ✅ Completed |
+| **Execution ID** | `we010j8t69ao3ack764ol` |
+| **Method** | Full demo: simulation → execution → audit trail |
+| **Wallet** | `0x749B59edC27F53E74fF93A6ef32a57be6E5F05f3` (KeeperHub Agentic Wallet) |
+
+Both transactions were executed through the KeeperHub MCP server using JSON-RPC 2.0 over Streamable HTTP, with pre-execution simulation, idempotency keys, and full audit trail logging.
 
 ---
 
