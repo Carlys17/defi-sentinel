@@ -19,9 +19,9 @@
 | 2 | `0x9a9668a32a18637c86d5484bcf57820fa282bed9f841337f5c0c3889d5c5ba97` | ✅ Completed | [BaseScan](https://sepolia.basescan.org/tx/0x9a9668a32a18637c86d5484bcf57820fa282bed9f841337f5c0c3889d5c5ba97) |
 
 ### 3. Demo Video
-- **Script:** `scripts/hackathon_demo.py`
-- **Run:** `python3 scripts/hackathon_demo.py`
-- **Record with:** OBS, asciinema, or screen recorder
+- **Video:** `demo/demo_video.mp4` (35 seconds)
+- **GitHub:** https://github.com/Carlys17/defi-sentinel/blob/main/demo/demo_video.mp4
+- **Run locally:** `python3 scripts/hackathon_demo.py`
 - **What it shows:**
   1. ✅ MCP Initialization
   2. ✅ Wallet Integration
